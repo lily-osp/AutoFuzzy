@@ -1,0 +1,63 @@
+---
+config:
+  theme: neo
+  layout: elk
+---
+graph TD
+    A[Start] --> B[Initialize AutoFuzzy Object]
+    B --> C[Define Variables]
+    C --> D{Variable Type?}
+    D -- Input --> E[Add Input Variable: Name, Min, Max]
+    D -- Output --> F[Add Output Variable: Name, Min, Max]
+    E --> G[Define Membership Functions for Input Variable]
+    F --> H[Define Membership Functions for Output Variable]
+
+    G --> I{Membership Function Type for Input?}
+    H --> J{Membership Function Type for Output?}
+
+    I -- Triangular --> K[Add Triangular MF: Define Left, Center, Right Parameters]
+    I -- Trapezoidal --> L[Add Trapezoidal MF: Define Left, Left-Center, Right-Center, Right Parameters]
+    J -- Triangular --> M[Add Triangular MF: Define Left, Center, Right Parameters]
+    J -- Trapezoidal --> N[Add Trapezoidal MF: Define Left, Left-Center, Right-Center, Right Parameters]
+
+    K --> O[Assign Membership Functions to Input Variable]
+    L --> O
+    M --> P[Assign Membership Functions to Output Variable]
+    N --> P
+
+    O --> Q[Define Fuzzy Rules for Inference]
+    P --> Q
+
+    Q --> R[Define Rules: Specify IF-THEN Relationships Between Input and Output Membership Functions]
+    R --> S[Finalize Rules for Evaluation]
+
+    S --> T[Prepare Input Data for Evaluation: Convert Crisp Values to Array]
+    T --> U[Evaluate Inputs: Apply Fuzzification to Convert Crisp Values to Membership Degrees]
+
+    U --> V[Apply Inference Engine: Process Each Rule Based on Input Membership Values]
+    V --> W{Select Rule Aggregation Method}
+    W -- Max-Min --> X[Use Minimum Membership Degree to Determine Output Membership]
+    W -- Max-Product --> Y[Use Product of Membership Degrees for Output Calculation]
+
+    X --> Z[Aggregate Results Across Rules for Output Fuzzy Set]
+    Y --> Z
+
+    Z --> AA[Defuzzify Output Fuzzy Set to Generate Crisp Value]
+    AA --> AB{Select Defuzzification Method}
+    AB -- Centroid --> AC[Compute Center of Gravity of Output Fuzzy Set]
+    AB -- Max Membership --> AD[Choose Peak Membership Value in Output Fuzzy Set]
+
+    AC --> AE[Return Crisp Output Value]
+    AD --> AE
+
+    AE --> AF{Optimize Membership Functions?}
+    AF -- Yes --> AG[Run AutoOptimize Algorithm to Adjust Membership Function Parameters]
+    AG --> AH[Re-Evaluate Fuzzy Logic System with Updated Parameters]
+    AH --> Z
+
+    AF -- No --> AI[End]
+
+    style A fill:#f9f,stroke:#333,stroke-width:4px
+    style AI fill:#f9f,stroke:#333,stroke-width:4px
+    style AG fill:#bbf,stroke:#333,stroke-width:2px
+    style AH fill:#bbf,stroke:#333,stroke-width:2px
