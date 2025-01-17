@@ -1,0 +1,26 @@
+#######################################
+# Syntax Coloring Map For AutoFuzzy
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+AutoFuzzy	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+addInput	KEYWORD2
+addOutput	KEYWORD2
+addTriangularMF	KEYWORD2
+addTrapezoidalMF	KEYWORD2
+addRule	KEYWORD2
+autoOptimize	KEYWORD2
+evaluate	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+MAX_VARS	LITERAL1
+MAX_MEMBERSHIP_FUNCTIONS	LITERAL1
+MAX_RULES	LITERAL1

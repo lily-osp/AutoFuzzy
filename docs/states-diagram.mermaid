@@ -1,0 +1,136 @@
+---
+config:
+  layout: elk
+---
+stateDiagram
+  direction TB
+
+  [*] --> Initialize
+  note right of Initialize: Initialize the fuzzy system. Set varCount and ruleCount to 0. Example "AutoFuzzy fuzzy;"
+
+  Initialize --> AddInput: Add input variables
+  note right of AddInput: Add input variables with a name, min, and max range. Example "fuzzy.addInput("temperature", 0, 100)"
+
+  Initialize --> AddOutput: Add output variables
+  note right of AddOutput: Add output variables with a name, min, and max range. Example "fuzzy.addOutput("fanSpeed", 0, 255)"
+
+  state AddInput {
+    direction TB
+    [*] --> DefineInputRange: Define min/max range
+    note right of DefineInputRange: Set the range for the input variable. Example "fuzzy.addInput("temperature", 0, 100)"
+
+    DefineInputRange --> AddInputMF: Add membership functions
+    note right of AddInputMF: Add triangular or trapezoidal membership functions. Example "fuzzy.addTriangularMF("temperature", "cold", 0, 20, 40)"
+  }
+
+  state AddOutput {
+    direction TB
+    [*] --> DefineOutputRange: Define min/max range
+    note right of DefineOutputRange: Set the range for the output variable. Example "fuzzy.addOutput("fanSpeed", 0, 255)"
+
+    DefineOutputRange --> AddOutputMF: Add membership functions
+    note right of AddOutputMF: Add triangular or trapezoidal membership functions. Example "fuzzy.addTrapezoidalMF("fanSpeed", "low", 0, 50, 100, 150)"
+  }
+
+  state AddInputMF {
+    direction TB
+    [*] --> TriangularMF: Add triangular membership function
+    note right of TriangularMF: Define a triangular membership function with 3 points. Example "fuzzy.addTriangularMF("temperature", "cold", 0, 20, 40)"
+
+    [*] --> TrapezoidalMF: Add trapezoidal membership function
+    note right of TrapezoidalMF: Define a trapezoidal membership function with 4 points. Example "fuzzy.addTrapezoidalMF("temperature", "warm", 20, 40, 60, 80)"
+
+    TriangularMF --> [*]
+    TrapezoidalMF --> [*]
+  }
+
+  state AddOutputMF {
+    direction TB
+    [*] --> TriangularMF: Add triangular membership function
+    note right of TriangularMF: Define a triangular membership function with 3 points. Example "fuzzy.addTriangularMF("fanSpeed", "low", 0, 64, 128)"
+
+    [*] --> TrapezoidalMF: Add trapezoidal membership function
+    note right of TrapezoidalMF: Define a trapezoidal membership function with 4 points. Example "fuzzy.addTrapezoidalMF("fanSpeed", "medium", 100, 150, 200, 255)"
+
+    TriangularMF --> [*]
+    TrapezoidalMF --> [*]
+  }
+
+  AddInput --> AddRule: Define rules
+  AddOutput --> AddRule: Define rules
+
+  state AddRule {
+    direction TB
+    [*] --> IfCondition: Define IF condition
+    note right of IfCondition: Define the IF part of the rule. Example "fuzzy.addRule("temperature", "cold", "fanSpeed", "low")"
+
+    IfCondition --> ThenAction: Define THEN action
+    note right of ThenAction: Define the THEN part of the rule. Example "fuzzy.addRule("temperature", "cold", "fanSpeed", "low")"
+
+    ThenAction --> [*]
+  }
+
+  AddRule --> Evaluate: Evaluate fuzzy system
+  note right of Evaluate: Compute the output based on input values and rules. Example "float inputs[] = {25.0}; float output = fuzzy.evaluate(inputs)"
+
+  state Evaluate {
+    direction TB
+    [*] --> Fuzzification: Convert crisp inputs to fuzzy sets
+    note right of Fuzzification: Map crisp input values to fuzzy sets. Example "float inputs[] = {25.0}; float output = fuzzy.evaluate(inputs)"
+
+    Fuzzification --> RuleEvaluation: Apply fuzzy rules
+    note right of RuleEvaluation: Evaluate all rules. Example "float output = fuzzy.evaluate(inputs)"
+
+    RuleEvaluation --> Aggregation: Combine rule outputs
+    note right of Aggregation: Combine the outputs of all rules. Example "float output = fuzzy.evaluate(inputs)"
+
+    Aggregation --> Defuzzification: Convert fuzzy output to crisp value
+    note right of Defuzzification: Convert the fuzzy output to a crisp value. Example "float output = fuzzy.evaluate(inputs)"
+
+    Defuzzification --> [*]
+  }
+
+  Evaluate --> AutoOptimize: Optimize membership functions (optional)
+  note right of AutoOptimize: Automatically optimize membership function parameters. Example "fuzzy.autoOptimize(100)"
+
+  state AutoOptimize {
+    direction TB
+    [*] --> GeneticAlgorithm: Run genetic algorithm
+    note right of GeneticAlgorithm: Randomly mutate membership function parameters. Example "fuzzy.autoOptimize(100)"
+
+    GeneticAlgorithm --> MutateParameters: Mutate membership function parameters
+    note right of MutateParameters: Adjust parameters within the defined range. Example "fuzzy.autoOptimize(100)"
+
+    MutateParameters --> CheckBounds: Ensure parameters are within bounds
+    note right of CheckBounds: Ensure parameters stay within the variable's min/max range. Example "fuzzy.autoOptimize(100)"
+
+    CheckBounds --> [*]
+  }
+
+  AutoOptimize --> [*]
+  Evaluate --> [*]
+
+  state LibraryCapabilities {
+    direction TB
+    IO --> MF: Define membership functions
+    MF --> Rules: Create rules
+    Rules --> Inference: Evaluate system
+    Inference --> Opt: Optimize system
+
+    state IO: Input/Output Management
+    note right of IO: Add and manage input/output variables. Example "fuzzy.addInput("temperature", 0, 100)"
+
+    state MF: Membership Functions
+    note right of MF: Define triangular and trapezoidal membership functions. Example "fuzzy.addTriangularMF("temperature", "cold", 0, 20, 40)"
+
+    state Rules: Rule Management
+    note right of Rules: Create and manage fuzzy rules. Example "fuzzy.addRule("temperature", "cold", "fanSpeed", "low")"
+
+    state Inference: Fuzzy Inference
+    note right of Inference: Perform fuzzification, rule evaluation, aggregation, and defuzzification. Example "float output = fuzzy.evaluate(inputs)"
+
+    state Opt: Optimization
+    note right of Opt: Automatically optimize membership function parameters. Example "fuzzy.autoOptimize(100)"
+  }
+
+  LibraryCapabilities --> [*]
