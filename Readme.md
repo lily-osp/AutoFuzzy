@@ -1,8 +1,8 @@
 # AutoFuzzy Library for Arduino
 
-## Overview
-
 AutoFuzzy is a powerful and flexible Arduino library that provides automated fuzzy logic capabilities with self-optimizing features. The library is designed to simplify the implementation of fuzzy logic controllers while offering advanced features for optimization and automation.
+
+---
 
 ## Features
 
@@ -17,6 +17,8 @@ AutoFuzzy is a powerful and flexible Arduino library that provides automated fuz
 - Built-in constraint handling
 - Real-time evaluation capabilities
 
+---
+
 ## Membership Functions: Triangular and Trapezoidal
 
 Membership functions are used in fuzzy logic to determine the degree of membership of an input to a fuzzy set. AutoFuzzy supports **triangular** and **trapezoidal** membership functions:
@@ -25,7 +27,7 @@ Membership functions are used in fuzzy logic to determine the degree of membersh
 
 #### Definition:
 
-The triangular membership function is defined by three parameters: \(a\), \(b\), and \(c\). These parameters represent the **lower bound**, the **peak**, and the **upper bound**, respectively.
+The triangular membership function is defined by three parameters: a, b, and c. These parameters represent the **lower bound**, the **peak**, and the **upper bound**, respectively.
 
 #### Formula:
 
@@ -35,9 +37,9 @@ $\mu(x) = \begin{cases} 0 & \text{if } x \leq a \text{ or } x \geq c \\ \frac{x 
 
 A triangular membership function has a simple triangle shape:
 
-- Rises linearly from \(a\) to \(b\).
-- Peaks at \(b\) with a membership value of 1.
-- Declines linearly from \(b\) to \(c\).
+- Rises linearly from a to b.
+- Peaks at b with a membership value of 1.
+- Declines linearly from b to c.
 
 #### Use Case:
 
@@ -47,7 +49,7 @@ Triangular membership functions are commonly used for crisp transitions or when 
 
 #### Definition:
 
-The trapezoidal membership function is defined by four parameters: \(a\), \(b\), \(c\), and \(d\). These parameters define the start, plateau start, plateau end, and end of the trapezoid.
+The trapezoidal membership function is defined by four parameters: a, b, c, and d. These parameters define the start, plateau start, plateau end, and end of the trapezoid.
 
 #### Formula:
 
@@ -57,9 +59,9 @@ $\mu(x) = \begin{cases} 0 & \text{if } x \leq a \text{ or } x \geq d \\ \frac{x 
 
 A trapezoidal membership function forms a trapezoid:
 
-- Rises linearly from \(a\) to \(b\).
-- Maintains a plateau with a membership value of 1 between \(b\) and \(c\).
-- Declines linearly from \(c\) to \(d\).
+- Rises linearly from a to b.
+- Maintains a plateau with a membership value of 1 between b and c.
+- Declines linearly from c to d.
 
 #### Use Case:
 
@@ -69,7 +71,7 @@ Trapezoidal membership functions are ideal when variables have a "neutral" or "s
 
 | **Feature**     | **Triangular MF**             | **Trapezoidal MF**         |
 | --------------- | ----------------------------- | -------------------------- |
-| **Parameters**  | 3 (\(a, b, c\))               | 4 (\(a, b, c, d\))         |
+| **Parameters**  | 3 (a, b, c)                   | 4 (a, b, c, d)             |
 | **Shape**       | Triangle                      | Trapezoid (with plateau)   |
 | **Complexity**  | Simpler                       | Slightly more complex      |
 | **Application** | Crisp transitions, small sets | Stable ranges, larger sets |
@@ -82,6 +84,8 @@ Trapezoidal membership functions are ideal when variables have a "neutral" or "s
 2. In the Arduino IDE, go to Sketch > Include Library > Add .ZIP Library
 3. Select the downloaded ZIP file
 4. Restart the Arduino IDE
+
+---
 
 ## Basic Usage
 
@@ -137,6 +141,8 @@ float temp = analogRead(A0) * 100.0 / 1023.0;
 float fanSpeed = fuzzy.evaluate(&temp);
 ```
 
+---
+
 ## Example Projects
 
 ### 1. Simple LED Brightness Control
@@ -153,9 +159,11 @@ Automated watering system based on soil moisture and temperature.
 
 ### 3. HVAC Control System
 
-Advanced temperature and humidity control with energy optimization.
+Advanced temperature and humidity control.
 
 - [example](examples/advanced)
+
+---
 
 ## Advanced Usage
 
@@ -177,7 +185,7 @@ The `autoOptimize()` function uses a genetic algorithm to optimize membership fu
 
 ```cpp
 // Default optimization
-fuzzy.autoOptimize(100);  // 100 iterations
+fuzzy.autoOptimize(100); // 100 iterations
 
 // The optimization process:
 // 1. Randomly adjusts membership function parameters
@@ -186,14 +194,18 @@ fuzzy.autoOptimize(100);  // 100 iterations
 // 4. Improves response based on built-in fitness function
 ```
 
-## Memory Usage
+---
+
+## Other
+
+### Memory Usage
 
 - Each variable: ~32 bytes
 - Each membership function: ~24 bytes
 - Each rule: ~4 bytes
 - Maximum memory usage with default settings: ~1KB
 
-## Limitations
+### Limitations
 
 - Maximum 10 variables (combined inputs and outputs)
 - Maximum 5 membership functions per variable
@@ -201,12 +213,25 @@ fuzzy.autoOptimize(100);  // 100 iterations
 - No support for custom membership function shapes
 - Single output evaluation per call
 
-## Performance Considerations
+### Performance Considerations
 
 - Evaluation time increases linearly with number of rules
 - Optimization process can take significant time
 - Consider reducing iteration count for faster optimization
 - Memory usage increases with number of variables and rules
+
+---
+
+## Detailed Explanation
+
+- For more details about the algorithms used in the library, read [here](docs/explanation.md).
+- For more details about the library usage, read [here](docs/usage.md).
+- For more details about manual tuning, read [here](docs/manual.md).
+- And For those who seek the Flowchart and the state diagram of the library u can see here:
+  - [Flowchart](docs/flowchart.mermaid)
+  - [State diagram](docs/state-diagram.mermaid)
+
+---
 
 ## Troubleshooting
 
@@ -230,6 +255,8 @@ fuzzy.autoOptimize(100);  // 100 iterations
    - Optimize membership function count
    - Consider using PROGMEM for constant data
 
+---
+
 ## Best Practices
 
 1. System Design:
@@ -251,6 +278,8 @@ fuzzy.autoOptimize(100);  // 100 iterations
    - Use minimum necessary membership functions
    - Optimize rule count
    - Clean up unused variables and rules
+
+---
 
 ## Contributing
 

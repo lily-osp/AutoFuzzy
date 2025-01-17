@@ -9,7 +9,7 @@
 #define MAX_RULES 50
 
 class AutoFuzzy {
-  public:
+public:
     AutoFuzzy();
 
     // Input/Output variable management
@@ -27,27 +27,27 @@ class AutoFuzzy {
     void autoOptimize(int iterations = 100);
     float evaluate(float* inputs);
 
-  private:
+private:
     struct MembershipFunction {
-      char name[20];
-      uint8_t type;  // 0 for triangular, 1 for trapezoidal
-      float params[4];
+        char name[20];
+        uint8_t type; // 0 for triangular, 1 for trapezoidal
+        float params[4];
     };
 
     struct Variable {
-      char name[20];
-      bool isInput;
-      float min;
-      float max;
-      MembershipFunction mfs[MAX_MEMBERSHIP_FUNCTIONS];
-      uint8_t mfCount;
+        char name[20];
+        bool isInput;
+        float min;
+        float max;
+        MembershipFunction mfs[MAX_MEMBERSHIP_FUNCTIONS];
+        uint8_t mfCount;
     };
 
     struct Rule {
-      uint8_t ifVar;
-      uint8_t ifMF;
-      uint8_t thenVar;
-      uint8_t thenMF;
+        uint8_t ifVar;
+        uint8_t ifMF;
+        uint8_t thenVar;
+        uint8_t thenMF;
     };
 
     Variable vars[MAX_VARS];

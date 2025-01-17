@@ -1,65 +1,73 @@
-// Intermediate Example: Plant Watering System
-// Controls water pump based on soil moisture and temperature
-// Intermediate Example: Plant Watering System
-// - Two inputs (moisture and temperature) and one output (pump duration)
-// - Uses both triangular and trapezoidal membership functions
-// - More complex rule set considering multiple conditions
-// - Includes system optimization
-// - Practical for home automation and indoor gardens
-// - Features safety thresholds and timing controls
-
 #include <AutoFuzzy.h>
 
-AutoFuzzy waterController;
-const int PUMP_PIN = 3;
-const int MOISTURE_PIN = A0;
-const int TEMP_PIN = A1;
+AutoFuzzy fuzzy;
 
-void setup() {
-  // Setup inputs and output
-  waterController.addInput("moisture", 0, 100);      // Moisture percentage
-  waterController.addInput("temperature", 0, 50);    // Temperature in Celsius
-  waterController.addOutput("pump_duration", 0, 30); // Watering duration in seconds
+// Pin definitions
+const int moisturePin = A0; // Soil moisture sensor
+const int tempPin = A1; // Temperature sensor
+const int pumpPin = 8; // Relay to control water pump
 
-  // Moisture membership functions
-  waterController.addTrapezoidalMF("moisture", "dry", 0, 0, 20, 30);
-  waterController.addTrapezoidalMF("moisture", "moist", 25, 40, 60, 75);
-  waterController.addTrapezoidalMF("moisture", "wet", 70, 80, 100, 100);
+void setup()
+{
+    Serial.begin(9600);
 
-  // Temperature membership functions
-  waterController.addTrapezoidalMF("temperature", "cool", 0, 0, 15, 20);
-  waterController.addTrapezoidalMF("temperature", "moderate", 18, 22, 28, 32);
-  waterController.addTrapezoidalMF("temperature", "hot", 30, 35, 50, 50);
+    // Intermediate Example: Plant Watering System
+    // Automates plant watering based on soil moisture and temperature
+    // - Two inputs (soil moisture and temperature) and one output (pump control)
+    // - Three membership functions for each input and output
+    // - Rules consider both moisture and temperature for decision-making
+    // - Ideal for intermediate users exploring multi-input fuzzy systems
+    // - Perfect for smart gardening or automated plant care
 
-  // Pump duration membership functions
-  waterController.addTriangularMF("pump_duration", "short", 0, 0, 10);
-  waterController.addTriangularMF("pump_duration", "medium", 8, 15, 22);
-  waterController.addTriangularMF("pump_duration", "long", 20, 30, 30);
+    // Add inputs (soil moisture and temperature)
+    fuzzy.addInput("moisture", 0, 1023); // Moisture sensor range
+    fuzzy.addInput("temp", 0, 50); // Temperature range in Celsius
 
-  // Rules
-  waterController.addRule("moisture", "dry", "pump_duration", "long");
-  waterController.addRule("moisture", "moist", "pump_duration", "medium");
-  waterController.addRule("moisture", "wet", "pump_duration", "short");
-  waterController.addRule("temperature", "hot", "pump_duration", "long");
-  waterController.addRule("temperature", "moderate", "pump_duration", "medium");
-  waterController.addRule("temperature", "cool", "pump_duration", "short");
+    // Add output (pump control: 0 = off, 1 = on)
+    fuzzy.addOutput("pump", 0, 1);
 
-  // Optimize the system based on historical data
-  waterController.autoOptimize(200);
+    // Add membership functions for moisture
+    fuzzy.addTriangularMF("moisture", "dry", 0, 300, 500);
+    fuzzy.addTriangularMF("moisture", "moist", 300, 500, 700);
+    fuzzy.addTriangularMF("moisture", "wet", 500, 700, 1023);
+
+    // Add membership functions for temperature
+    fuzzy.addTriangularMF("temp", "cold", 0, 10, 20);
+    fuzzy.addTriangularMF("temp", "warm", 10, 20, 30);
+    fuzzy.addTriangularMF("temp", "hot", 20, 30, 50);
+
+    // Add membership functions for pump
+    fuzzy.addTriangularMF("pump", "off", 0, 0, 0.5);
+    fuzzy.addTriangularMF("pump", "on", 0.5, 1, 1);
+
+    // Add rules
+    fuzzy.addRule("moisture", "dry", "pump", "on");
+    fuzzy.addRule("moisture", "moist", "temp", "cold", "pump", "off");
+    fuzzy.addRule("moisture", "moist", "temp", "warm", "pump", "on");
+    fuzzy.addRule("moisture", "moist", "temp", "hot", "pump", "on");
+    fuzzy.addRule("moisture", "wet", "pump", "off");
 }
 
-void loop() {
-  float moistureLevel = map(analogRead(MOISTURE_PIN), 0, 1023, 0, 100);
-  float temperature = map(analogRead(TEMP_PIN), 0, 1023, 0, 50);
-  float inputs[] = {moistureLevel, temperature};
+void loop()
+{
+    // Read sensor values
+    int moisture = analogRead(moisturePin);
+    int temp = analogRead(tempPin) / 20.47; // Convert to Celsius (assuming 10-bit ADC)
 
-  float pumpDuration = waterController.evaluate(inputs);
+    // Evaluate fuzzy logic
+    float inputs[2] = { (float)moisture, (float)temp };
+    float pumpState = fuzzy.evaluate(inputs);
 
-  if (pumpDuration > 5) {  // Minimum threshold to avoid frequent short bursts
-    digitalWrite(PUMP_PIN, HIGH);
-    delay(pumpDuration * 1000);
-    digitalWrite(PUMP_PIN, LOW);
-  }
+    // Control the pump
+    digitalWrite(pumpPin, pumpState > 0.5 ? HIGH : LOW);
 
-  delay(300000);  // Check every 5 minutes
+    // Print values for debugging
+    Serial.print("Moisture: ");
+    Serial.print(moisture);
+    Serial.print(" Temp: ");
+    Serial.print(temp);
+    Serial.print(" Pump: ");
+    Serial.println(pumpState > 0.5 ? "ON" : "OFF");
+
+    delay(1000); // Check every second
 }

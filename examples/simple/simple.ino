@@ -1,40 +1,59 @@
-// Simple Example: LED Brightness Control based on Light Sensor
-// Controls LED brightness based on ambient light level
-// Simple Example: LED Brightness Control
-// - Single input (light sensor) and single output (LED)
-// - Three basic membership functions for each variable
-// - Simple rules for brightness control
-// - Ideal for beginners learning fuzzy logic
-// - Perfect for mood lighting or automatic night lights
-
 #include <AutoFuzzy.h>
 
-AutoFuzzy lightController;
+AutoFuzzy fuzzy;
 
-void setup() {
-  // Setup input/output
-  lightController.addInput("ambient_light", 0, 1023);  // Analog input range
-  lightController.addOutput("led_brightness", 0, 255);  // PWM output range
+// Pin definitions
+const int potPin = A0; // Potentiometer connected to A0
+const int ledPin = 9; // LED connected to PWM pin 9
 
-  // Define membership functions for ambient light
-  lightController.addTriangularMF("ambient_light", "dark", 0, 0, 400);
-  lightController.addTriangularMF("ambient_light", "medium", 300, 500, 700);
-  lightController.addTriangularMF("ambient_light", "bright", 600, 1023, 1023);
+void setup()
+{
+    Serial.begin(9600);
 
-  // Define membership functions for LED brightness
-  lightController.addTriangularMF("led_brightness", "high", 170, 255, 255);
-  lightController.addTriangularMF("led_brightness", "medium", 85, 127, 170);
-  lightController.addTriangularMF("led_brightness", "low", 0, 0, 85);
+    // Simple Example: LED Brightness Control based on Potentiometer
+    // Controls LED brightness based on potentiometer input
+    // - Single input (potentiometer) and single output (LED brightness)
+    // - Three basic membership functions for each variable
+    // - Simple rules for brightness control
+    // - Ideal for beginners learning fuzzy logic
+    // - Perfect for dimmable lighting or user-controlled brightness
 
-  // Define rules
-  lightController.addRule("ambient_light", "dark", "led_brightness", "high");
-  lightController.addRule("ambient_light", "medium", "led_brightness", "medium");
-  lightController.addRule("ambient_light", "bright", "led_brightness", "low");
+    // Add input (potentiometer value) and output (LED brightness)
+    fuzzy.addInput("potValue", 0, 1023); // Potentiometer range
+    fuzzy.addOutput("ledBrightness", 0, 255); // PWM range for LED
+
+    // Add membership functions for input
+    fuzzy.addTriangularMF("potValue", "low", 0, 255, 511);
+    fuzzy.addTriangularMF("potValue", "medium", 255, 511, 767);
+    fuzzy.addTriangularMF("potValue", "high", 511, 767, 1023);
+
+    // Add membership functions for output
+    fuzzy.addTriangularMF("ledBrightness", "dim", 0, 64, 128);
+    fuzzy.addTriangularMF("ledBrightness", "medium", 64, 128, 192);
+    fuzzy.addTriangularMF("ledBrightness", "bright", 128, 192, 255);
+
+    // Add rules
+    fuzzy.addRule("potValue", "low", "ledBrightness", "dim");
+    fuzzy.addRule("potValue", "medium", "ledBrightness", "medium");
+    fuzzy.addRule("potValue", "high", "ledBrightness", "bright");
 }
 
-void loop() {
-  float lightLevel = analogRead(A0);
-  float ledBrightness = lightController.evaluate(&lightLevel);
-  analogWrite(9, ledBrightness);
-  delay(100);
+void loop()
+{
+    // Read potentiometer value
+    int potValue = analogRead(potPin);
+
+    // Evaluate fuzzy logic
+    float ledBrightness = fuzzy.evaluate((float*)&potValue);
+
+    // Set LED brightness
+    analogWrite(ledPin, (int)ledBrightness);
+
+    // Print values for debugging
+    Serial.print("Potentiometer: ");
+    Serial.print(potValue);
+    Serial.print(" LED Brightness: ");
+    Serial.println((int)ledBrightness);
+
+    delay(100); // Small delay for stability
 }
