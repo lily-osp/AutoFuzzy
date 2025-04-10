@@ -1,246 +1,184 @@
-# Explanation of Fuzzy Logic
+# AutoFuzzy Library: Internal Explanation
 
-Fuzzy logic is a form of many-valued logic that deals with reasoning that is approximate rather than fixed and exact. Unlike traditional binary logic, where variables are either true (1) or false (0), fuzzy logic allows for degrees of truth, represented by values between 0 and 1. This makes it particularly useful for handling real-world problems where information is often imprecise or uncertain.
+This document provides insight into the internal workings, algorithms, and data structures used within the AutoFuzzy library.
 
----
+## Core Fuzzy Logic Concepts Implemented
 
-## Table of Contents
+AutoFuzzy implements a Type-1 Mamdani-style fuzzy inference system with common simplifications for microcontroller environments.
 
-1. [Introduction to Fuzzy Logic](#introduction-to-fuzzy-logic)
-2. [Key Concepts in Fuzzy Logic](#key-concepts-in-fuzzy-logic)
-   - [Fuzzy Sets](#fuzzy-sets)
-   - [Membership Functions](#membership-functions)
-   - [Linguistic Variables](#linguistic-variables)
-   - [Fuzzy Rules](#fuzzy-rules)
-3. [Fuzzy Logic Operations](#fuzzy-logic-operations)
-   - [AND, OR, NOT](#and-or-not)
-   - [Implication](#implication)
-   - [Aggregation](#aggregation)
-   - [Defuzzification](#defuzzification)
-4. [Mathematical Foundations](#mathematical-foundations)
-   - [Membership Function Formulas](#membership-function-formulas)
-   - [Fuzzy Inference](#fuzzy-inference)
-5. [Implementation in the AutoFuzzy Library](#implementation-in-the-autofuzzy-library)
-   - [Adding Inputs and Outputs](#adding-inputs-and-outputs)
-   - [Defining Membership Functions](#defining-membership-functions)
-   - [Creating Rules](#creating-rules)
-   - [Evaluating the System](#evaluating-the-system)
-   - [Optimization](#optimization)
-6. [Applications of Fuzzy Logic](#applications-of-fuzzy-logic)
-7. [Advantages and Disadvantages](#advantages-and-disadvantages)
-8. [Conclusion](#conclusion)
+*   **Linguistic Variables:** Represented by the `Variable` struct, holding name, range (min/max), input/output status, and associated Membership Functions.
+*   **Membership Functions (MFs):** Represented by the `MembershipFunction` struct, storing name, type (`MfType` enum: `MF_TRIANGULAR`, `MF_TRAPEZOIDAL`), and parameters (`params` array). Currently, Triangular and Trapezoidal shapes are supported.
+*   **Fuzzy Rules:** Represented by the `Rule` struct. Each rule stores indices for its antecedent variables and MFs, the combining operator (`FuzzyOperator` enum: `FUZZY_AND`, `FUZZY_OR`), and indices for its single consequent variable and MF.
+*   **Inference Steps:**
+    1.  **Fuzzification:** Input values are mapped to degrees of membership using `calculateMembership()`.
+    2.  **Rule Evaluation:** Antecedent memberships are combined using `applyOperator()` (MIN for AND, MAX for OR) within `calculateRuleActivation()` to find each rule's strength.
+    3.  **Defuzzification:** A crisp output is calculated using a weighted average (Center of Sums) approach within `evaluate()`, using MF centroids calculated by `getMfCentroid()`.
 
----
+## Library Architecture & Data Structures
 
-## Introduction to Fuzzy Logic
+### Key Structs
 
-Fuzzy logic was introduced by Lotfi Zadeh in 1965 as a way to model the uncertainty and vagueness present in natural language and human reasoning. It extends classical logic by allowing partial truth values, enabling systems to make decisions based on imprecise or incomplete information.
+*   **`Variable`**:
+    ```cpp
+    struct Variable {
+        char name[FUZZY_MAX_NAME_LEN];
+        bool isInput; // True if input, false if output
+        float min;
+        float max;
+        MembershipFunction mfs[FUZZY_MAX_MF_PER_VAR]; // Array of MFs for this var
+        uint8_t mfCount; // Number of active MFs in the array
+        // ... helper methods
+    };
+    ```
+*   **`MembershipFunction`**:
+    ```cpp
+    struct MembershipFunction {
+        char name[FUZZY_MAX_NAME_LEN];
+        MfType type; // MF_TRIANGULAR or MF_TRAPEZOIDAL
+        float params[4]; // Stores a,b,c for Tri; a,b,c,d for Trap
+    };
+    ```
+*   **`Rule`**:
+    ```cpp
+    struct Rule {
+        uint8_t antecedentVarIndices[FUZZY_MAX_ANTECEDENTS_PER_RULE];
+        uint8_t antecedentMfIndices[FUZZY_MAX_ANTECEDENTS_PER_RULE];
+        uint8_t numAntecedents;
+        FuzzyOperator op; // FUZZY_AND or FUZZY_OR
+        uint8_t consequentVarIndex; // Single consequent variable
+        uint8_t consequentMfIndex;  // Single consequent MF
+    };
+    ```
+*   **`FuzzyInput`**: Used to pass crisp input values to `evaluate()`.
+    ```cpp
+    typedef struct {
+        uint8_t varIndex;
+        float value;
+    } FuzzyInput;
+    ```
+*   **`Antecedent` / `Consequent`**: Helper structs for defining rules using indices.
+    ```cpp
+    struct AutoFuzzy::Antecedent { int varIndex; int mfIndex; };
+    struct AutoFuzzy::Consequent { int varIndex; int mfIndex; };
+    ```
 
-### Why Use Fuzzy Logic?
+### Main Storage
 
-- **Handles Uncertainty**: Fuzzy logic is well-suited for systems where data is noisy or ambiguous.
-- **Human-Like Reasoning**: It mimics human decision-making by using linguistic variables and rules.
-- **Flexibility**: It can be applied to a wide range of problems, from control systems to artificial intelligence.
-
----
-
-## Key Concepts in Fuzzy Logic
-
-### Fuzzy Sets
-
-In classical set theory, an element either belongs to a set or does not. In fuzzy logic, an element can belong to a set to a certain degree, represented by a **membership value** between 0 and 1.
-
-- **Example**: If we define a fuzzy set for "temperature," a value of 25°C might belong to the set "warm" with a membership value of 0.7.
-
-### Membership Functions
-
-A membership function defines how each point in the input space is mapped to a membership value between 0 and 1. Common types of membership functions include:
-
-- **Triangular**: Defined by three points (a, b, c).
-- **Trapezoidal**: Defined by four points (a, b, c, d).
-- **Gaussian**: Defined by a mean and standard deviation.
-
-#### Mathematical Representation:
-
-- **Triangular Membership Function**:
-  $ \mu(x) = \begin{cases} 0 & \text{if } x \leq a \\ \frac{x - a}{b - a} & \text{if } a < x \leq b \\ \frac{c - x}{c - b} & \text{if } b < x \leq c \\ 0 & \text{if } x > c \end{cases} $
-
-- **Trapezoidal Membership Function**:
-  $ \mu(x) = \begin{cases} 0 & \text{if } x \leq a \\ \frac{x - a}{b - a} & \text{if } a < x \leq b \\ 1 & \text{if } b < x \leq c \\ \frac{d - x}{d - c} & \text{if } c < x \leq d \\ 0 & \text{if } x > d \end{cases} $
-
-### Linguistic Variables
-
-Linguistic variables are variables whose values are words or sentences in a natural language. For example:
-
-- **Variable**: Temperature
-- **Values**: Cold, Warm, Hot
-
-### Fuzzy Rules
-
-Fuzzy rules are conditional statements that describe the relationship between input and output variables. They are typically expressed in the form:
-
-- **IF (condition) THEN (action)**
-
-#### Example:
-
-- **IF** temperature is **cold** **THEN** heater is **high**.
-
----
-
-## Fuzzy Logic Operations
-
-### AND, OR, NOT
-
-Fuzzy logic extends classical logic operations to handle degrees of truth:
-
-- **AND**: The minimum of the membership values.
-  $ \mu_{A \cap B}(x) = \min(\mu_A(x), \mu_B(x)) $
-- **OR**: The maximum of the membership values.
-  $ \mu_{A \cup B}(x) = \max(\mu_A(x), \mu_B(x)) $
-- **NOT**: The complement of the membership value.
-  $ \mu_{\neg A}(x) = 1 - \mu_A(x) $
-
-### Implication
-
-Implication defines how the "IF" part of a rule affects the "THEN" part. Common methods include:
-
-- **Min (Mamdani)**: The output membership function is clipped at the rule's strength.
-- **Product (Larsen)**: The output membership function is scaled by the rule's strength.
-
-### Aggregation
-
-Aggregation combines the outputs of multiple rules into a single fuzzy set. Common methods include:
-
-- **Max**: The maximum of all rule outputs.
-- **Sum**: The sum of all rule outputs.
-
-### Defuzzification
-
-Defuzzification converts the aggregated fuzzy set into a crisp output value. Common methods include:
-
-- **Centroid**: The center of mass of the fuzzy set.
-  $ \text{Output} = \frac{\int x \cdot \mu(x) \, dx}{\int \mu(x) \, dx} $
-- **Weighted Average**: The average of the rule outputs weighted by their strengths.
-
----
-
-## Mathematical Foundations
-
-### Membership Function Formulas
-
-- **Triangular**:
-  $ \mu(x) = \max\left(0, \min\left(\frac{x - a}{b - a}, \frac{c - x}{c - b}\right)\right) $
-- **Trapezoidal**:
-  $ \mu(x) = \max\left(0, \min\left(\frac{x - a}{b - a}, 1, \frac{d - x}{d - c}\right)\right) $
-
-### Fuzzy Inference
-
-Fuzzy inference is the process of mapping inputs to outputs using fuzzy rules. It involves:
-
-1. **Fuzzification**: Converting crisp inputs into fuzzy sets.
-2. **Rule Evaluation**: Applying fuzzy rules to the inputs.
-3. **Aggregation**: Combining the results of all rules.
-4. **Defuzzification**: Converting the fuzzy output into a crisp value.
-
----
-
-## Implementation in the AutoFuzzy Library
-
-The `AutoFuzzy` library simplifies the implementation of fuzzy logic systems on Arduino. Below is a detailed explanation of how fuzzy logic concepts are implemented in the library.
-
-### Adding Inputs and Outputs
-
-- **Inputs**: Represent the variables that the system will use to make decisions (e.g., temperature, humidity).
-- **Outputs**: Represent the variables that the system will control (e.g., fan speed, heater intensity).
-
-#### Example:
+The `AutoFuzzy` class holds arrays of these core structs:
 
 ```cpp
-fuzzy.addInput("temperature", 0, 100);  // Input: temperature (0-100°C)
-fuzzy.addOutput("fanSpeed", 0, 255);    // Output: fan speed (0-255 PWM)
+class AutoFuzzy {
+    // ... public methods ...
+private:
+    Variable vars[FUZZY_MAX_VARS];
+    uint8_t varCount;
+    Rule rules[FUZZY_MAX_RULES];
+    uint8_t ruleCount;
+    // ... private methods ...
+};
 ```
+The sizes of these arrays are determined by the `FUZZY_MAX_...` configuration defines.
 
-### Defining Membership Functions
+## Inference Engine Details
 
-Membership functions define how input and output values are mapped to fuzzy sets.
+### Fuzzification (`calculateMembership`)
 
-#### Example:
+This function takes a `MembershipFunction` and a crisp `value` and returns the degree of membership (0.0 to 1.0).
 
-```cpp
-// Triangular membership function for "temperature"
-fuzzy.addTriangularMF("temperature", "cold", 0, 20, 40);
-fuzzy.addTriangularMF("temperature", "warm", 20, 40, 60);
-fuzzy.addTriangularMF("temperature", "hot", 40, 60, 100);
+*   **Triangular (`a`, `b`, `c`):**
+    *   If `value <= a` or `value >= c`, result is 0.
+    *   If `a < value < b`, result is `(value - a) / (b - a)`.
+    *   If `b <= value < c`, result is `(c - value) / (c - b)`.
+    *   Handles cases where `b-a` or `c-b` are zero (vertical slopes) by returning 1.0 if `value` is exactly `b`.
+*   **Trapezoidal (`a`, `b`, `c`, `d`):**
+    *   If `value <= a` or `value >= d`, result is 0.
+    *   If `b <= value <= c`, result is 1.0.
+    *   If `a < value < b`, result is `(value - a) / (b - a)`.
+    *   If `c < value < d`, result is `(d - value) / (d - c)`.
+    *   Handles cases where `b-a` or `d-c` are zero.
 
-// Trapezoidal membership function for "fanSpeed"
-fuzzy.addTrapezoidalMF("fanSpeed", "low", 0, 50, 100, 150);
-fuzzy.addTrapezoidalMF("fanSpeed", "medium", 100, 150, 200, 255);
-```
+### Rule Activation (`calculateRuleActivation`)
 
-### Creating Rules
+This function determines the "strength" or "firing level" of a single `Rule` based on the current `FuzzyInput` values.
 
-Rules define the relationship between inputs and outputs using linguistic variables.
+1.  Initializes `activation` (e.g., to the membership of the first antecedent).
+2.  Iterates through the rule's antecedents (`i = 1` to `numAntecedents - 1`).
+3.  For each antecedent:
+    *   Finds the corresponding `FuzzyInput` value provided.
+    *   Calls `calculateMembership()` for that variable, MF, and value to get `currentMembership`.
+    *   Combines the `activation` calculated so far with `currentMembership` using the rule's `op` (`FUZZY_AND` or `FUZZY_OR`) via `applyOperator()`.
+    *   Updates `activation` with the result.
+4.  Returns the final combined `activation` strength (0.0 to 1.0).
 
-#### Example:
+### Fuzzy Operators (`applyOperator`)
 
-```cpp
-fuzzy.addRule("temperature", "cold", "fanSpeed", "low");
-fuzzy.addRule("temperature", "warm", "fanSpeed", "medium");
-fuzzy.addRule("temperature", "hot", "fanSpeed", "high");
-```
+This helper simply implements the chosen fuzzy logic for AND/OR:
 
-### Evaluating the System
+*   `FUZZY_AND`: Returns `fmin(value1, value2)`
+*   `FUZZY_OR`: Returns `fmax(value1, value2)`
 
-The `evaluate()` function computes the output based on the current input values.
+### Defuzzification (`evaluate`)
 
-#### Example:
+This function calculates the final crisp output value for a specific `outputVarIndex`.
 
-```cpp
-float inputs[] = {25.0};  // Temperature = 25°C
-float output = fuzzy.evaluate(inputs);  // Compute fan speed
-```
+1.  Initializes `weightedSum = 0.0` and `weightSum = 0.0`.
+2.  Iterates through all defined `rules`.
+3.  If a rule's `consequentVarIndex` matches the target `outputVarIndex`:
+    *   Calls `calculateRuleActivation()` to get the rule's strength `w_i`.
+    *   If `w_i > 0`:
+        *   Gets the consequent `MembershipFunction`.
+        *   Calls `getMfCentroid()` to find the representative crisp value `c_i` for that MF.
+        *   Updates `weightedSum += w_i * c_i`.
+        *   Updates `weightSum += w_i`.
+        *   Sets a flag indicating at least one rule fired.
+4.  After checking all rules:
+    *   If no rules fired, returns `FUZZY_ERROR_NO_RULES_FIRED` (output value might be set to min).
+    *   If `weightSum` is close to zero, returns `FUZZY_ERROR_DIVIDE_BY_ZERO` (output value might be set to min).
+    *   Otherwise, calculates the final result: `resultValue = weightedSum / weightSum`.
+    *   Clamps `resultValue` to the output variable's defined `min`/`max` range.
+    *   Returns `FUZZY_OK`.
 
-### Optimization
+### MF Centroid Calculation (`getMfCentroid`)
 
-The `autoOptimize()` function uses a genetic algorithm to optimize the membership function parameters.
+This provides a simplified representative value for output MFs, used in defuzzification.
 
-#### Example:
+*   **Triangular (`a`, `b`, `c`):** Returns the peak value `b`. (Approximation)
+*   **Trapezoidal (`a`, `b`, `c`, `d`):** Returns the midpoint of the plateau `(b + c) / 2`. (Approximation)
 
-```cpp
-fuzzy.autoOptimize(100);  // Optimize over 100 iterations
-```
+*(Note: These are simplifications. Calculating the true geometric centroid of these shapes is more complex and often unnecessary for practical control applications on microcontrollers).*
 
----
+## `autoTune` Algorithm Explanation
 
-## Applications of Fuzzy Logic
+`autoTune` implements a randomized **heuristic optimization** (specifically, a form of **stochastic hill climbing**) to adjust MF parameters (`a`, `b`, `c`, `d` values for all MFs).
 
-Fuzzy logic is widely used in various fields, including:
+*   **Goal:** Minimize the Mean Squared Error (MSE) between the fuzzy system's output for a given output variable and a set of target outputs provided in the training data.
+*   **Fitness Function (`evaluateFitness`):** Calculates MSE:
+    ```
+    MSE = (1 / numSets) * Σ [ (trainingOutputs[i] - evaluate(trainingInputs[i]))^2 ]
+    ```
+    The sum is over all training sets `i`. `evaluate()` is called internally using the current MF parameters. Lower MSE indicates better fitness.
+*   **Process (`autoTune` main loop):**
+    1.  **Backup:** Store the current parameters of all MFs. Calculate initial `bestFitness`.
+    2.  **Iterate:** Loop `iterations` times.
+    3.  **Mutate (`mutateParameters`):** Randomly modify parameters of all MFs:
+        *   For each parameter (`a,b,c` or `a,b,c,d`):
+            *   With probability `mutationRate`, add a random value within `[-range, +range]`, where `range = (var.max - var.min) * mutationRange`.
+        *   **Constrain:** Ensure mutated parameters stay within `var.min` and `var.max`.
+        *   **Order:** Enforce parameter order (e.g., `a <= b <= c`). A simple fix is applied (`params[k] = params[k-1]` if out of order), rather than a full sort.
+    4.  **Evaluate:** Calculate `currentFitness` using the *mutated* parameters via `evaluateFitness()`.
+    5.  **Select:**
+        *   If `currentFitness < bestFitness`: The mutation was beneficial. Keep the mutated parameters. Update `bestFitness = currentFitness`. Backup the new best parameters.
+        *   Else: The mutation was not helpful. Restore the parameters from the last saved backup.
+    6.  **Repeat:** Continue iterating.
+*   **Outcome:** After `iterations`, the MFs will hold the parameters corresponding to the lowest MSE found during the process.
+*   **Heuristic Nature:** It explores the parameter space randomly. It might find a good solution but doesn't guarantee finding the absolute *best* possible parameters (global minimum). It can get stuck in local minima. Performance depends heavily on the starting point, training data, and tuning parameters (`iterations`, `mutationRate`, `mutationRange`).
+*   **Dynamic Memory:** Uses `new`/`delete[]` to temporarily store backup parameters during the tuning process.
 
-- **Control Systems**: Temperature control, washing machines, and air conditioners.
-- **Artificial Intelligence**: Decision-making systems and expert systems.
-- **Automotive**: Anti-lock braking systems (ABS) and automatic transmissions.
-- **Finance**: Stock market analysis and risk assessment.
+## Memory Considerations
 
----
+*   **Static Memory (RAM):** The primary usage comes from the fixed-size arrays `vars[]` and `rules[]`. Their size depends directly on `FUZZY_MAX_VARS`, `FUZZY_MAX_MF_PER_VAR`, and `FUZZY_MAX_RULES`. Keep these limits reasonable for your target board.
+*   **Dynamic Memory (Heap):** Only `autoTune()` uses the heap via `new`/`delete[]` for backing up MF parameters and creating temporary input arrays. If `autoTune` is not used, the library uses no dynamic memory allocation.
 
-## Advantages and Disadvantages
+## Error Handling (`FuzzyResult`)
 
-### Advantages
-
-- **Handles Uncertainty**: Works well with imprecise or noisy data.
-- **Human-Like Reasoning**: Mimics human decision-making processes.
-- **Flexibility**: Can be applied to a wide range of problems.
-
-### Disadvantages
-
-- **Complexity**: Designing fuzzy systems can be challenging.
-- **Computational Cost**: May require more processing power than traditional methods.
-- **Subjectivity**: Membership functions and rules are often based on expert knowledge.
-
----
-
-## Conclusion
-
-Fuzzy logic is a powerful tool for modeling and controlling systems where uncertainty and imprecision are present. By allowing for degrees of truth, it provides a more nuanced and human-like approach to decision-making. The `AutoFuzzy` library simplifies the implementation of fuzzy logic on Arduino, making it accessible for a wide range of applications.
-
----
+Most public methods return a value from the `FuzzyResult` enum. This allows the calling code to detect and react to issues during setup or evaluation (e.g., configuration errors, evaluation warnings like `NO_RULES_FIRED`). The `getResultString()` method provides a textual description for debugging.

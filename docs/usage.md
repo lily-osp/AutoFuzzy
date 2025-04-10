@@ -1,297 +1,277 @@
-# AutoFuzzy Library Usage Guide
+# AutoFuzzy Library: Usage Guide
 
-The `AutoFuzzy` library is designed to simplify the implementation of fuzzy logic systems on Arduino. It allows you to define input and output variables, membership functions, and rules, and then evaluate the system to make decisions based on fuzzy logic.
+This guide details how to use the AutoFuzzy library in your Arduino sketches to implement fuzzy logic controllers.
 
-## Table of Contents
-1. [Installation](#installation)
-2. [Getting Started](#getting-started)
-3. [API Reference](#api-reference)
-   - [Input/Output Variables](#inputoutput-variables)
-   - [Membership Functions](#membership-functions)
-   - [Rules](#rules)
-   - [Evaluation](#evaluation)
-   - [Optimization](#optimization)
-4. [Examples](#examples)
-   - [Simple Example: LED Brightness Control](#simple-example-led-brightness-control)
-   - [Intermediate Example: Plant Watering System](#intermediate-example-plant-watering-system)
-   - [Advanced Example: HVAC Control System](#advanced-example-hvac-control-system)
-5. [Limitations](#limitations)
-6. [Contributing](#contributing)
+## Prerequisites
 
----
+1.  **Install the Library:** Ensure the AutoFuzzy library is correctly installed in your Arduino IDE (See main README.md).
+2.  **Include Header:** Add the following line at the top of your sketch:
+    ```cpp
+    #include <AutoFuzzy.h>
+    ```
 
-## Installation
+## Step-by-Step Guide
 
-1. Download the `AutoFuzzy` library as a `.zip` file or clone the repository.
-2. Open the Arduino IDE.
-3. Go to `Sketch > Include Library > Add .ZIP Library...`.
-4. Select the downloaded `.zip` file or the cloned repository folder.
-5. The library is now installed and ready to use.
+Here's the typical workflow for setting up and using the AutoFuzzy system:
 
----
+### 1. Instantiate the AutoFuzzy Object
 
-## Getting Started
-
-To use the `AutoFuzzy` library, include it in your sketch:
-
-```cpp
-#include <AutoFuzzy.h>
-```
-
-Create an instance of the `AutoFuzzy` class:
+First, create an instance of the `AutoFuzzy` class. This object will hold your entire fuzzy system configuration.
 
 ```cpp
 AutoFuzzy fuzzy;
 ```
 
-Now you can define your fuzzy logic system by adding inputs, outputs, membership functions, and rules.
+### 2. Define Input and Output Variables
 
----
+Define the linguistic variables your system will use. Inputs typically come from sensors, and outputs control actuators. Use descriptive names.
 
-## API Reference
+*   **Add Input Variables:** Use `addInput(name, min_value, max_value)`
+*   **Add Output Variables:** Use `addOutput(name, min_value, max_value)`
 
-### Input/Output Variables
-
-#### `addInput(const char* name, float min, float max)`
-- **Description**: Adds an input variable to the fuzzy system.
-- **Parameters**:
-  - `name`: The name of the input variable (e.g., "temperature").
-  - `min`: The minimum value of the input range.
-  - `max`: The maximum value of the input range.
-- **Example**:
-  ```cpp
-  fuzzy.addInput("temperature", 0, 100);
-  ```
-
-#### `addOutput(const char* name, float min, float max)`
-- **Description**: Adds an output variable to the fuzzy system.
-- **Parameters**:
-  - `name`: The name of the output variable (e.g., "fanSpeed").
-  - `min`: The minimum value of the output range.
-  - `max`: The maximum value of the output range.
-- **Example**:
-  ```cpp
-  fuzzy.addOutput("fanSpeed", 0, 255);
-  ```
-
----
-
-### Membership Functions
-
-#### `addTriangularMF(const char* varName, const char* mfName, float a, float b, float c)`
-- **Description**: Adds a triangular membership function to a variable.
-- **Parameters**:
-  - `varName`: The name of the variable to which the membership function belongs.
-  - `mfName`: The name of the membership function (e.g., "low").
-  - `a`: The leftmost point of the triangle.
-  - `b`: The peak of the triangle.
-  - `c`: The rightmost point of the triangle.
-- **Example**:
-  ```cpp
-  fuzzy.addTriangularMF("temperature", "low", 0, 20, 40);
-  ```
-
-#### `addTrapezoidalMF(const char* varName, const char* mfName, float a, float b, float c, float d)`
-- **Description**: Adds a trapezoidal membership function to a variable.
-- **Parameters**:
-  - `varName`: The name of the variable to which the membership function belongs.
-  - `mfName`: The name of the membership function (e.g., "medium").
-  - `a`: The leftmost point of the trapezoid.
-  - `b`: The start of the flat top.
-  - `c`: The end of the flat top.
-  - `d`: The rightmost point of the trapezoid.
-- **Example**:
-  ```cpp
-  fuzzy.addTrapezoidalMF("temperature", "medium", 30, 40, 60, 70);
-  ```
-
----
-
-### Rules
-
-#### `addRule(const char* ifVar, const char* ifMF, const char* thenVar, const char* thenMF)`
-- **Description**: Adds a rule to the fuzzy system.
-- **Parameters**:
-  - `ifVar`: The name of the input variable in the "if" part of the rule.
-  - `ifMF`: The name of the membership function in the "if" part of the rule.
-  - `thenVar`: The name of the output variable in the "then" part of the rule.
-  - `thenMF`: The name of the membership function in the "then" part of the rule.
-- **Example**:
-  ```cpp
-  fuzzy.addRule("temperature", "high", "fanSpeed", "high");
-  ```
-
----
-
-### Evaluation
-
-#### `evaluate(float* inputs)`
-- **Description**: Evaluates the fuzzy system based on the provided input values.
-- **Parameters**:
-  - `inputs`: An array of input values corresponding to the input variables.
-- **Returns**: The output value computed by the fuzzy system.
-- **Example**:
-  ```cpp
-  float inputs[] = {25.0};  // Temperature = 25°C
-  float output = fuzzy.evaluate(inputs);
-  ```
-
----
-
-### Optimization
-
-#### `autoOptimize(int iterations = 100)`
-- **Description**: Automatically optimizes the membership function parameters using a simple genetic algorithm.
-- **Parameters**:
-  - `iterations`: The number of optimization iterations (default: 100).
-- **Example**:
-  ```cpp
-  fuzzy.autoOptimize(200);
-  ```
-
----
-
-## Examples
-
-### Simple Example: LED Brightness Control
-This example controls the brightness of an LED based on a potentiometer input.
+**Important:** Check the return value! These functions return the variable's index (>=0) on success or -1 on error. Store these indices if you plan to add MFs or rules using them (which is more efficient than using names).
 
 ```cpp
-#include <AutoFuzzy.h>
-
-AutoFuzzy fuzzy;
+int tempVar = -1;       // Variable to store index
+int fanSpeedVar = -1; // Variable to store index
 
 void setup() {
-  fuzzy.addInput("potValue", 0, 1023);
-  fuzzy.addOutput("ledBrightness", 0, 255);
+  // ... Serial.begin(), etc.
 
-  fuzzy.addTriangularMF("potValue", "low", 0, 255, 511);
-  fuzzy.addTriangularMF("potValue", "medium", 255, 511, 767);
-  fuzzy.addTriangularMF("potValue", "high", 511, 767, 1023);
+  tempVar = fuzzy.addInput("Temperature", 0.0f, 50.0f); // Range 0-50 C
+  if (tempVar < 0) {
+    Serial.println("Error: Failed to add input 'Temperature'!");
+    while(1); // Halt on critical error
+  }
 
-  fuzzy.addTriangularMF("ledBrightness", "dim", 0, 64, 128);
-  fuzzy.addTriangularMF("ledBrightness", "medium", 64, 128, 192);
-  fuzzy.addTriangularMF("ledBrightness", "bright", 128, 192, 255);
-
-  fuzzy.addRule("potValue", "low", "ledBrightness", "dim");
-  fuzzy.addRule("potValue", "medium", "ledBrightness", "medium");
-  fuzzy.addRule("potValue", "high", "ledBrightness", "bright");
-}
-
-void loop() {
-  int potValue = analogRead(A0);
-  float ledBrightness = fuzzy.evaluate((float*)&potValue);
-  analogWrite(9, (int)ledBrightness);
-  delay(100);
+  fanSpeedVar = fuzzy.addOutput("FanSpeed", 0.0f, 100.0f); // Range 0-100 %
+  if (fanSpeedVar < 0) {
+    Serial.println("Error: Failed to add output 'FanSpeed'!");
+    while(1); // Halt
+  }
+  Serial.println("Variables added successfully.");
 }
 ```
 
----
+### 3. Define Membership Functions (MFs)
 
-### Intermediate Example: Plant Watering System
-This example automates plant watering based on soil moisture and temperature.
+For each variable, define the fuzzy sets (linguistic terms like "Cold", "Optimal", "High") using Membership Functions.
+
+*   **Triangular:** `addTriangularMF(varIndexOrName, mfName, a, b, c)`
+*   **Trapezoidal:** `addTrapezoidalMF(varIndexOrName, mfName, a, b, c, d)`
+
+**Important:** Check the `FuzzyResult` return value for errors!
 
 ```cpp
-#include <AutoFuzzy.h>
-
-AutoFuzzy fuzzy;
-
 void setup() {
-  fuzzy.addInput("moisture", 0, 1023);
-  fuzzy.addInput("temp", 0, 50);
-  fuzzy.addOutput("pump", 0, 1);
+  // ... after adding variables ...
+  FuzzyResult result; // To store function results
 
-  fuzzy.addTriangularMF("moisture", "dry", 0, 300, 500);
-  fuzzy.addTriangularMF("moisture", "moist", 300, 500, 700);
-  fuzzy.addTriangularMF("moisture", "wet", 500, 700, 1023);
+  // Add MFs for Temperature (using index stored in tempVar)
+  result = fuzzy.addTrapezoidalMF(tempVar, "Cold", 0.0f, 5.0f, 15.0f, 20.0f);
+  if (result != FUZZY_OK) Serial.println("Error adding MF 'Cold': " + String(fuzzy.getResultString(result)));
 
-  fuzzy.addTriangularMF("temp", "cold", 0, 10, 20);
-  fuzzy.addTriangularMF("temp", "warm", 10, 20, 30);
-  fuzzy.addTriangularMF("temp", "hot", 20, 30, 50);
+  result = fuzzy.addTrapezoidalMF(tempVar, "Optimal", 18.0f, 22.0f, 26.0f, 30.0f);
+  if (result != FUZZY_OK) Serial.println("Error adding MF 'Optimal': " + String(fuzzy.getResultString(result)));
 
-  fuzzy.addTriangularMF("pump", "off", 0, 0, 0.5);
-  fuzzy.addTriangularMF("pump", "on", 0.5, 1, 1);
+  result = fuzzy.addTrapezoidalMF(tempVar, "Hot", 28.0f, 35.0f, 45.0f, 50.0f);
+  if (result != FUZZY_OK) Serial.println("Error adding MF 'Hot': " + String(fuzzy.getResultString(result)));
 
-  fuzzy.addRule("moisture", "dry", "pump", "on");
-  fuzzy.addRule("moisture", "moist", "temp", "cold", "pump", "off");
-  fuzzy.addRule("moisture", "moist", "temp", "warm", "pump", "on");
-  fuzzy.addRule("moisture", "moist", "temp", "hot", "pump", "on");
-  fuzzy.addRule("moisture", "wet", "pump", "off");
-}
+  // Add MFs for FanSpeed (using name directly - less efficient but convenient)
+  result = fuzzy.addTrapezoidalMF("FanSpeed", "Slow", 0.0f, 10.0f, 25.0f, 40.0f);
+  if (result != FUZZY_OK) Serial.println("Error adding MF 'Slow': " + String(fuzzy.getResultString(result)));
 
-void loop() {
-  int moisture = analogRead(A0);
-  int temp = analogRead(A1) / 20.47;
-  float inputs[] = {(float)moisture, (float)temp};
-  float pumpState = fuzzy.evaluate(inputs);
-  digitalWrite(8, pumpState > 0.5 ? HIGH : LOW);
-  delay(1000);
+  result = fuzzy.addTrapezoidalMF("FanSpeed", "Fast", 60.0f, 80.0f, 95.0f, 100.0f);
+  if (result != FUZZY_OK) Serial.println("Error adding MF 'Fast': " + String(fuzzy.getResultString(result)));
+
+  Serial.println("Membership functions defined.");
 }
 ```
 
----
+### 4. Define Fuzzy Rules
 
-### Advanced Example: HVAC Control System
-This example controls heating and cooling based on temperature and humidity.
+Create the IF-THEN rules that link your input conditions to output actions.
+
+**Methods:**
+
+*   **Simple SISO Rule (using names):**
+    ```cpp
+    result = fuzzy.addRule("Temperature", "Cold", "FanSpeed", "Slow");
+    if (result != FUZZY_OK) { /* Handle error */ }
+    ```
+
+*   **Simple SISO Rule (using indices - recommended):**
+    ```cpp
+    // Get MF indices first (safer and more efficient)
+    int tempColdMf = fuzzy.findMF(tempVar, "Cold");
+    int fanSlowMf = fuzzy.findMF(fanSpeedVar, "Slow");
+    if (tempColdMf < 0 || fanSlowMf < 0) { /* Handle error: MF not found */ }
+
+    // Define the antecedent (IF part)
+    AutoFuzzy::Antecedent if_condition = {tempVar, tempColdMf};
+    // Define the consequent (THEN part)
+    AutoFuzzy::Consequent then_action = {fanSpeedVar, fanSlowMf};
+
+    // Add the rule
+    result = fuzzy.addRule(if_condition, then_action);
+    if (result != FUZZY_OK) { /* Handle error */ }
+    ```
+
+*   **Multi-Antecedent Rule (using indices):**
+    ```cpp
+    // Get MF indices needed
+    int tempHotMf = fuzzy.findMF(tempVar, "Hot");
+    int humidityHumidMf = fuzzy.findMF(humidityVar, "Humid"); // Assume humidityVar exists
+    int fanFastMf = fuzzy.findMF(fanSpeedVar, "Fast");
+    if (tempHotMf < 0 || humidityHumidMf < 0 || fanFastMf < 0) { /* Handle error */ }
+
+    // Define the antecedents (IF parts)
+    AutoFuzzy::Antecedent conditions[] = {
+      {tempVar, tempHotMf},         // IF Temperature IS Hot
+      {humidityVar, humidityHumidMf} // AND Humidity IS Humid
+    };
+    int numConditions = 2;
+
+    // Define the consequent (THEN part)
+    AutoFuzzy::Consequent action = {fanSpeedVar, fanFastMf}; // THEN FanSpeed IS Fast
+
+    // Add the rule using FUZZY_AND or FUZZY_OR
+    result = fuzzy.addRule(conditions, numConditions, FUZZY_AND, action);
+    if (result != FUZZY_OK) { /* Handle error */ }
+    ```
+
+### 5. Prepare Inputs for Evaluation
+
+In your `loop()`, read your sensor values and package them into an array of `FuzzyInput` structs. Each struct needs the variable index and the current crisp value.
 
 ```cpp
-#include <AutoFuzzy.h>
-
-AutoFuzzy fuzzy;
-
-void setup() {
-  fuzzy.addInput("temp", 0, 50);
-  fuzzy.addInput("humidity", 0, 100);
-  fuzzy.addOutput("heater", 0, 255);
-  fuzzy.addOutput("cooler", 0, 255);
-
-  fuzzy.addTriangularMF("temp", "cold", 0, 10, 20);
-  fuzzy.addTriangularMF("temp", "comfort", 10, 20, 30);
-  fuzzy.addTriangularMF("temp", "hot", 20, 30, 50);
-
-  fuzzy.addTriangularMF("humidity", "low", 0, 30, 50);
-  fuzzy.addTriangularMF("humidity", "comfort", 30, 50, 70);
-  fuzzy.addTriangularMF("humidity", "high", 50, 70, 100);
-
-  fuzzy.addTriangularMF("heater", "off", 0, 0, 128);
-  fuzzy.addTriangularMF("heater", "low", 0, 128, 255);
-  fuzzy.addTriangularMF("heater", "high", 128, 255, 255);
-
-  fuzzy.addTriangularMF("cooler", "off", 0, 0, 128);
-  fuzzy.addTriangularMF("cooler", "low", 0, 128, 255);
-  fuzzy.addTriangularMF("cooler", "high", 128, 255, 255);
-
-  fuzzy.addRule("temp", "cold", "heater", "high");
-  fuzzy.addRule("temp", "cold", "cooler", "off");
-  fuzzy.addRule("temp", "comfort", "humidity", "low", "heater", "low");
-  fuzzy.addRule("temp", "comfort", "humidity", "comfort", "heater", "off");
-  fuzzy.addRule("temp", "comfort", "humidity", "high", "cooler", "low");
-  fuzzy.addRule("temp", "hot", "cooler", "high");
-  fuzzy.addRule("temp", "hot", "heater", "off");
-}
-
 void loop() {
-  int temp = analogRead(A0) / 20.47;
-  int humidity = analogRead(A1) / 10.23;
-  float inputs[] = {(float)temp, (float)humidity};
-  float outputs[2];
-  outputs[0] = fuzzy.evaluate(inputs);  // Heater
-  outputs[1] = fuzzy.evaluate(inputs);  // Cooler
-  analogWrite(9, (int)outputs[0]);
-  analogWrite(10, (int)outputs[1]);
-  delay(1000);
+  // Read sensor values
+  float currentTemp = readTemperatureSensor();
+  float currentHumidity = readHumiditySensor(); // Assuming you have this input
+
+  // Create the input array - MUST include values for ALL inputs used by rules
+  FuzzyInput currentInputs[] = {
+    { (uint8_t)tempVar, currentTemp },         // Use the stored index
+    { (uint8_t)humidityVar, currentHumidity }  // Use the stored index
+  };
+  int numInputsProvided = 2; // Number of structs in the array
+  // ...
 }
 ```
 
----
+### 6. Evaluate the Fuzzy System
 
-## Limitations
-- The library supports a maximum of 10 variables, 5 membership functions per variable, and 50 rules.
-- The optimization function (`autoOptimize`) is a simple genetic algorithm and may not be suitable for complex systems.
+Call the `evaluate()` function to calculate the crisp output value for a specific output variable.
 
----
+*   For **MIMO** systems (Multiple Outputs), you need to call `evaluate()` **once for each output variable** you want to calculate.
 
-## Contributing
-Contributions are welcome! Please open an issue or submit a pull request on the GitHub repository.
+```cpp
+void loop() {
+  // ... read sensors and prepare currentInputs array ...
 
----
+  float calculatedFanSpeed; // Variable to store the result
+  float calculatedHeaterPower; // Example for a second output
+
+  // Evaluate for the FanSpeed output (using fanSpeedVar index)
+  FuzzyResult fanResult = fuzzy.evaluate(currentInputs, numInputsProvided, calculatedFanSpeed, fanSpeedVar);
+
+  // Check the result
+  if (fanResult == FUZZY_OK) {
+    Serial.println("Calculated Fan Speed: " + String(calculatedFanSpeed));
+    // Use calculatedFanSpeed to control your fan/actuator
+  } else if (fanResult == FUZZY_ERROR_NO_RULES_FIRED) {
+    Serial.println("Warning: No rules fired for fan speed. Using default.");
+    // Apply a default safe value
+  } else {
+    Serial.println("Error evaluating fan speed: " + String(fuzzy.getResultString(fanResult)));
+    // Apply a default safe value
+  }
+
+  // --- If you have another output (e.g., Heater) ---
+  /*
+  FuzzyResult heaterResult = fuzzy.evaluate(currentInputs, numInputsProvided, calculatedHeaterPower, heaterVar); // Assume heaterVar exists
+  if (heaterResult == FUZZY_OK) {
+     Serial.println("Calculated Heater Power: " + String(calculatedHeaterPower));
+     // Use calculatedHeaterPower
+  } else {
+     // Handle heater evaluation errors/warnings
+  }
+  */
+
+  delay(1000); // Wait before next cycle
+}
+```
+
+### 7. (Optional) Auto Tuning
+
+If you have training data (known input sets and their corresponding desired output values), you can use `autoTune()` to attempt optimization of MF parameters. **This is computationally intensive and uses dynamic memory – run in `setup()` if possible.**
+
+```cpp
+void setup() {
+  // ... complete steps 1-4 (define vars, MFs, rules) ...
+
+  // --- Prepare Training Data ---
+  const int NUM_SETS = 3;
+  // Input data: columns must match order inputs were added (e.g., Temp, Humidity)
+  float train_inputs_data[NUM_SETS][2] = {
+    {15.0, 60.0}, // Cold, Normal
+    {28.0, 50.0}, // Warm, Normal
+    {38.0, 80.0}  // Hot, Humid
+  };
+  // Convert to array of pointers for the function
+  float* train_inputs[NUM_SETS];
+  for(int i=0; i<NUM_SETS; ++i) train_inputs[i] = train_inputs_data[i];
+
+  // Expected output data (e.g., for FanSpeed)
+  float train_outputs[NUM_SETS] = { 20.0, 60.0, 90.0 }; // Expected % fan speeds
+
+  // --- Run Tuning ---
+  Serial.println("Running AutoTune...");
+  // Tune parameters focusing on fanSpeedVar output
+  FuzzyResult tuneResult = fuzzy.autoTune(
+                                train_inputs,
+                                train_outputs,
+                                NUM_SETS,
+                                fanSpeedVar, // Target output variable index
+                                500,        // Iterations (adjust as needed)
+                                0.1f,       // Mutation Rate (0.0-1.0)
+                                0.1f        // Mutation Range (0.0-1.0)
+                               );
+
+  if (tuneResult == FUZZY_OK) {
+    Serial.println("AutoTune completed.");
+    // The MFs in the 'fuzzy' object are now potentially modified.
+  } else {
+    Serial.println("AutoTune failed: " + String(fuzzy.getResultString(tuneResult)));
+  }
+
+  Serial.println("Setup complete.");
+}
+```
+
+**Important `autoTune` Notes:**
+*   It's heuristic, not guaranteed to find the best solution.
+*   Requires good, representative training data.
+*   Tunes parameters for *all* MFs, aiming to improve performance for the *specified* output variable.
+*   Can take significant time and RAM.
+
+## Configuration (Overrides)
+
+You can change default limits (max variables, rules, etc.) by defining macros *before* `#include <AutoFuzzy.h>`:
+
+```cpp
+#define FUZZY_MAX_RULES 100 // Allow up to 100 rules
+#define FUZZY_MAX_VARS 15   // Allow up to 15 variables
+#include <AutoFuzzy.h>
+```
+(See main README.md for default values and other defines). Beware of increased RAM usage.
+
+## Tips and Best Practices
+
+*   **Check ALL Return Values:** Especially during setup (`addInput`, `addOutput`, `add...MF`, `addRule`). Use `getResultString()` for debugging.
+*   **Use Indices:** Adding MFs/Rules using variable/MF indices is generally safer and more efficient than using names. Use `findVariable()` and `findMF()` to get indices.
+*   **Start Simple:** Build and test your fuzzy system incrementally.
+*   **Ensure MF Overlap:** Input variables should ideally have some degree of membership (>0) in at least one MF across their expected range to avoid `FUZZY_ERROR_NO_RULES_FIRED`. MFs should overlap smoothly.
+*   **Rule Coverage:** Ensure your rules logically cover the combinations of inputs you expect to encounter.
+*   **Monitor Memory:** Especially if increasing limits or using `autoTune`, keep an eye on RAM usage.

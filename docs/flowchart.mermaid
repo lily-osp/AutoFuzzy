@@ -1,63 +1,57 @@
 ---
 config:
-  theme: neo
   layout: elk
 ---
-graph TD
-    A[Start] --> B[Initialize AutoFuzzy Object]
-    B --> C[Define Variables]
-    C --> D{Variable Type?}
-    D -- Input --> E[Add Input Variable: Name, Min, Max]
-    D -- Output --> F[Add Output Variable: Name, Min, Max]
-    E --> G[Define Membership Functions for Input Variable]
-    F --> H[Define Membership Functions for Output Variable]
-
-    G --> I{Membership Function Type for Input?}
-    H --> J{Membership Function Type for Output?}
-
-    I -- Triangular --> K[Add Triangular MF: Define Left, Center, Right Parameters]
-    I -- Trapezoidal --> L[Add Trapezoidal MF: Define Left, Left-Center, Right-Center, Right Parameters]
-    J -- Triangular --> M[Add Triangular MF: Define Left, Center, Right Parameters]
-    J -- Trapezoidal --> N[Add Trapezoidal MF: Define Left, Left-Center, Right-Center, Right Parameters]
-
-    K --> O[Assign Membership Functions to Input Variable]
-    L --> O
-    M --> P[Assign Membership Functions to Output Variable]
-    N --> P
-
-    O --> Q[Define Fuzzy Rules for Inference]
-    P --> Q
-
-    Q --> R[Define Rules: Specify IF-THEN Relationships Between Input and Output Membership Functions]
-    R --> S[Finalize Rules for Evaluation]
-
-    S --> T[Prepare Input Data for Evaluation: Convert Crisp Values to Array]
-    T --> U[Evaluate Inputs: Apply Fuzzification to Convert Crisp Values to Membership Degrees]
-
-    U --> V[Apply Inference Engine: Process Each Rule Based on Input Membership Values]
-    V --> W{Select Rule Aggregation Method}
-    W -- Max-Min --> X[Use Minimum Membership Degree to Determine Output Membership]
-    W -- Max-Product --> Y[Use Product of Membership Degrees for Output Calculation]
-
-    X --> Z[Aggregate Results Across Rules for Output Fuzzy Set]
-    Y --> Z
-
-    Z --> AA[Defuzzify Output Fuzzy Set to Generate Crisp Value]
-    AA --> AB{Select Defuzzification Method}
-    AB -- Centroid --> AC[Compute Center of Gravity of Output Fuzzy Set]
-    AB -- Weighted Average --> AD[Compute Weighted Average of Rule Outputs]
-
-    AC --> AE[Return Crisp Output Value]
-    AD --> AE
-
-    AE --> AF{Optimize Membership Functions?}
-    AF -- Yes --> AG[Run AutoOptimize Algorithm to Adjust Membership Function Parameters]
-    AG --> AH[Re-Evaluate Fuzzy Logic System with Updated Parameters]
-    AH --> Z
-
-    AF -- No --> AI[End]
-
-    style A fill:#f9f,stroke:#333,stroke-width:4px
-    style AI fill:#f9f,stroke:#333,stroke-width:4px
-    style AG fill:#bbf,stroke:#333,stroke-width:2px
-    style AH fill:#bbf,stroke:#333,stroke-width:2px
+flowchart TD
+ subgraph FA["Calculate Rule Activation 'w_i'"]
+    direction LR
+        F2@{ label: "Get Membership 'm_0'" }
+        F1["Start activationCalc(rule, inputs)"]
+        F3["activation = m_0"]
+        F4{"Loop Antecedents (k=1 to numAntecedents-1)"}
+        F5@{ label: "Get Membership 'm_k'" }
+        F6["activation = applyOperator(rule.op, activation, m_k)"]
+        F7{"rule.op == AND and activation == 0?"}
+        F9["Return activation = 0"]
+        F8["Return activation"]
+  end
+    A["Start evaluate(inputs, numInputs, &resultValue, outputVarIndex)"] --> B{"Validate Inputs?"}
+    B -- OK --> C["Init weightedSum=0, weightSum=0, ruleFired=false"]
+    B -- Error --> Z["Return Error Code"]
+    C --> D{"Loop Through Rules (i = 0 to ruleCount-1)"}
+    D --> E{"Rule[i].consequentVarIndex == outputVarIndex?"} & M{"ruleFired == true?"}
+    E -- Yes --> F@{ label: "Calculate Rule Activation 'w_i'" }
+    E -- No --> D
+    F --> G{"w_i > 0?"}
+    G -- Yes --> H@{ label: "Get Consequent MF 'mf_c' from Rule[i]" }
+    G -- No --> D
+    H --> I@{ label: "Calculate Centroid 'c_i' = getMfCentroid(mf_c)" }
+    I --> J["weightedSum += w_i * c_i"]
+    J --> K["weightSum += w_i"]
+    K --> L["Set ruleFired = true"]
+    L --> D
+    M -- No --> N["resultValue = default (e.g., var.min)"]
+    N --> O["Return FUZZY_ERROR_NO_RULES_FIRED"]
+    M -- Yes --> P{"abs(weightSum) &lt; epsilon?"}
+    P -- Yes --> Q["resultValue = default (e.g., var.min)"]
+    Q --> R["Return FUZZY_ERROR_DIVIDE_BY_ZERO"]
+    P -- No --> S["resultValue = weightedSum / weightSum"]
+    S --> T["Constrain resultValue to outputVar min/max"]
+    T --> U["Return FUZZY_OK"]
+    F1 --> F2
+    F2 --> F3
+    F3 --> F4
+    F4 -- Next Antecedent --> F5
+    F5 --> F6
+    F6 --> F7
+    F7 -- Yes --> F9
+    F7 -- No --> F4
+    F4 -- Loop Finished --> F8
+    O --> Z
+    R --> Z
+    U --> Z
+    F@{ shape: rect}
+    H@{ shape: rect}
+    I@{ shape: rect}
+    F2@{ shape: diamond}
+    F5@{ shape: diamond}
