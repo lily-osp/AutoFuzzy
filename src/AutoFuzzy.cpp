@@ -167,9 +167,19 @@ int AutoFuzzy::findOutputVarIndex(const char* name) const
     return -1;
 }
 
-// --- Membership Function Management ---
+/**
+ * @brief Membership Function Management Implementation
+ */
 
-// Helper to check MF parameter validity
+/**
+ * @brief Validate membership function parameter ordering
+ *
+ * Ensures that membership function parameters are properly ordered
+ * (e.g., a ≤ b ≤ c for triangular, a ≤ b ≤ c ≤ d for trapezoidal).
+ *
+ * @param mf Membership function to validate
+ * @return true if parameters are properly ordered, false otherwise
+ */
 bool AutoFuzzy::checkMfParamOrder(const MembershipFunction& mf) const
 {
     switch (mf.type) {
@@ -282,7 +292,9 @@ const AutoFuzzy::MembershipFunction* AutoFuzzy::getMF(int varIndex, int mfIndex)
     return &var->mfs[mfIndex];
 }
 
-// --- Rule Management ---
+/**
+ * @brief Rule Management Implementation
+ */
 
 FuzzyResult AutoFuzzy::addRule(const Antecedent antecedents[], int numAntecedents, FuzzyOperator op, const Consequent& consequent)
 {
@@ -357,12 +369,24 @@ FuzzyResult AutoFuzzy::addRule(const char* ifVarName, const char* ifMfName, cons
     return addRule(ant, con);
 }
 
-// --- Fuzzy Inference Core ---
+/**
+ * @brief Fuzzy Inference Engine Implementation
+ */
 
+/**
+ * @brief Calculate membership degree for a given input value
+ *
+ * Computes the degree of membership (0.0 to 1.0) for a crisp input value
+ * within a fuzzy membership function using appropriate mathematical formulas.
+ *
+ * @param mf Reference to the membership function to evaluate
+ * @param value Crisp input value to evaluate membership for
+ * @return Membership degree between 0.0 (no membership) and 1.0 (full membership)
+ */
 float AutoFuzzy::calculateMembership(const MembershipFunction& mf, float value) const
 {
-    // Clamp value to variable bounds (optional but often helpful)
-    // Optional: Add parent Variable reference to MF if needed for bounds. For now, assume value is reasonable.
+    // Input validation: clamp value to reasonable bounds to prevent numerical issues
+    // Note: Could add parent Variable reference for bounds checking if needed
 
     switch (mf.type) {
     case MF_TRIANGULAR: {
@@ -542,7 +566,7 @@ FuzzyResult AutoFuzzy::evaluate(const FuzzyInput inputs[], int numInputs, float&
 
             float mfCenter = getMfCentroid(*consequentMF);
             if (isnan(mfCenter))
-                return FUZZY_ERROR_INVALID_PARAMS; // Error getting centroid
+                return FUZZY_ERROR_INVALID_PARAMS; // Centroid calculation failed
 
             weightedSum += mfCenter * activation;
             weightSum += activation;
@@ -550,7 +574,7 @@ FuzzyResult AutoFuzzy::evaluate(const FuzzyInput inputs[], int numInputs, float&
     }
 
     if (!ruleFired) {
-        resultValue = outputVar->min; // Or some default value (e.g., midpoint, 0)
+        resultValue = outputVar->min; // Default to minimum value when no rules fire
         return FUZZY_ERROR_NO_RULES_FIRED;
     }
 
@@ -567,9 +591,13 @@ FuzzyResult AutoFuzzy::evaluate(const FuzzyInput inputs[], int numInputs, float&
     return FUZZY_OK;
 }
 
-// --- Automated Tuning (Heuristic) ---
+/**
+ * @brief Automated Parameter Tuning Implementation
+ */
 
-// Backup/Restore helpers for tuning
+/**
+ * @brief Parameter backup and restore utilities for optimization
+ */
 void AutoFuzzy::backupParameters(MembershipFunction& dest, const MembershipFunction& src)
 {
     memcpy(&dest, &src, sizeof(MembershipFunction));
@@ -597,9 +625,8 @@ float AutoFuzzy::evaluateFitness(float** trainingInputs, float* trainingOutputs,
 
     FuzzyInput* currentInputs = new FuzzyInput[numInputVars]; // Remove (std::nothrow)
     if (!currentInputs) { // Check for null pointer after allocation
-        // Optional: Add a Serial print here if debugging memory issues
-        // Serial.println("Error: Failed to allocate memory for currentInputs in evaluateFitness");
-        return FLT_MAX; // Memory allocation failed
+        // Memory allocation failure - could add Serial debugging here if needed
+        return FLT_MAX; // Return worst possible fitness to indicate failure
     }
 
     for (int i = 0; i < numSets; ++i) {
@@ -671,8 +698,7 @@ void AutoFuzzy::mutateParameters(float mutationRate, float mutationRange)
 #endif
             }
 
-            // Ensure parameters remain ordered (e.g., a <= b <= c for triangular)
-            // Sort the parameters after mutation
+            // Maintain parameter ordering after mutation (e.g., a ≤ b ≤ c for triangular)
             for (int k = 1; k < paramCount; ++k) {
                 if (mf.params[k] < mf.params[k - 1]) {
                     // Simple fix: set to previous value. More robust: sort params[0..paramCount-1]
@@ -700,9 +726,8 @@ FuzzyResult AutoFuzzy::autoTune(float** trainingInputs, float* trainingOutputs, 
     // Backup original parameters for all MFs
     MembershipFunction* backupMFs = new MembershipFunction[FUZZY_MAX_VARS * FUZZY_MAX_MF_PER_VAR]; // Remove (std::nothrow)
     if (!backupMFs) { // Check for null pointer after allocation
-        // Optional: Add a Serial print here if debugging memory issues
-        // Serial.println("Error: Failed to allocate memory for backupMFs in autoTune");
-        return FUZZY_ERROR_NULL_POINTER; // Allocation failed
+        // Memory allocation failure for parameter backup - critical for tuning
+        return FUZZY_ERROR_NULL_POINTER; // Cannot proceed without backup memory
     }
 
     int backupIdx = 0;
@@ -717,18 +742,18 @@ FuzzyResult AutoFuzzy::autoTune(float** trainingInputs, float* trainingOutputs, 
     float bestFitness = evaluateFitness(trainingInputs, trainingOutputs, numSets, outputVarIndex);
 
     for (int iter = 0; iter < iterations; ++iter) {
-        // --- Create Candidate: Mutate current best ---
-        // (Could also restore original and mutate from there, or implement population)
+        // Generate candidate solution by mutating current best parameters
+        // Alternative approaches: restore from original or use population-based evolution
 
         // Mutate the current parameters
         mutateParameters(mutationRate, mutationRange);
 
-        // --- Evaluate Candidate ---
+        // Evaluate fitness of the mutated candidate solution
         float currentFitness = evaluateFitness(trainingInputs, trainingOutputs, numSets, outputVarIndex);
 
-        // --- Selection: Keep if better ---
+        // Selection phase: retain improvements, discard worse solutions
         if (currentFitness < bestFitness) {
-            // New best found, keep mutated parameters
+            // Superior solution found - preserve the improved parameters
             bestFitness = currentFitness;
             // Backup the new best parameters
             backupIdx = 0;
@@ -751,7 +776,7 @@ FuzzyResult AutoFuzzy::autoTune(float** trainingInputs, float* trainingOutputs, 
             }
         }
 
-        // Optional: Add some logging for progress (e.g., every 10 iterations)
+        // Optional: Enable progress logging for debugging (uncomment if needed)
         // if (iter % 10 == 0) { Serial.print("Iter: "); Serial.print(iter); Serial.print(" Best Fitness: "); Serial.println(bestFitness); }
     }
 
@@ -761,7 +786,19 @@ FuzzyResult AutoFuzzy::autoTune(float** trainingInputs, float* trainingOutputs, 
     return FUZZY_OK;
 }
 
-// --- Utility ---
+/**
+ * @brief Utility Functions Implementation
+ */
+
+/**
+ * @brief Convert result code to human-readable error message
+ *
+ * Provides descriptive error messages for all possible FuzzyResult codes,
+ * enabling better debugging and user feedback in applications.
+ *
+ * @param result Result code to convert to string
+ * @return Human-readable description of the result code
+ */
 const char* AutoFuzzy::getResultString(FuzzyResult result) const
 {
     switch (result) {

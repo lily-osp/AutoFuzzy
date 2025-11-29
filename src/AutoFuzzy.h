@@ -310,34 +310,142 @@ private:
         uint8_t consequentMfIndex;
     };
 
+private:
+    // Core Data Structures
+
+    /** Array of linguistic variables (both input and output) */
     Variable vars[FUZZY_MAX_VARS];
+
+    /** Current number of defined variables */
     uint8_t varCount;
+
+    /** Array of fuzzy rules in the knowledge base */
     Rule rules[FUZZY_MAX_RULES];
+
+    /** Current number of defined rules */
     uint8_t ruleCount;
 
-    // Internal helper to get variable pointer safely
+    // Private Helper Methods
+
+    /**
+     * @brief Get variable pointer with bounds checking
+     * @param varIndex Variable index to access
+     * @return Pointer to variable or nullptr if invalid
+     */
     Variable* getVariable(int varIndex);
+
+    /**
+     * @brief Get const variable pointer with bounds checking
+     * @param varIndex Variable index to access
+     * @return Const pointer to variable or nullptr if invalid
+     */
     const Variable* getVariable(int varIndex) const;
 
-    // Internal helper to get MF pointer safely
+    /**
+     * @brief Get membership function pointer with bounds checking
+     * @param varIndex Variable index
+     * @param mfIndex Membership function index within variable
+     * @return Pointer to membership function or nullptr if invalid
+     */
     MembershipFunction* getMF(int varIndex, int mfIndex);
+
+    /**
+     * @brief Get const membership function pointer with bounds checking
+     * @param varIndex Variable index
+     * @param mfIndex Membership function index within variable
+     * @return Const pointer to membership function or nullptr if invalid
+     */
     const MembershipFunction* getMF(int varIndex, int mfIndex) const;
 
-    // Fuzzy Logic Core
+    // Fuzzy Logic Engine Core
+
+    /**
+     * @brief Calculate membership degree for a given value
+     * @param mf Reference to membership function
+     * @param value Input value to evaluate
+     * @return Membership degree (0.0 to 1.0)
+     */
     float calculateMembership(const MembershipFunction& mf, float value) const;
-    float applyOperator(FuzzyOperator op, float value1, float value2) const; // Applies AND/OR
+
+    /**
+     * @brief Apply fuzzy logic operator (AND/OR) to two values
+     * @param op Operator to apply (FUZZY_AND or FUZZY_OR)
+     * @param value1 First operand
+     * @param value2 Second operand
+     * @return Result of fuzzy operation
+     */
+    float applyOperator(FuzzyOperator op, float value1, float value2) const;
+
+    /**
+     * @brief Calculate activation strength of a fuzzy rule
+     * @param rule Rule to evaluate
+     * @param inputs Array of current input values
+     * @param numInputs Number of input values provided
+     * @return Rule activation strength (0.0 to 1.0)
+     */
     float calculateRuleActivation(const Rule& rule, const FuzzyInput inputs[], int numInputs) const;
-    float getMfCentroid(const MembershipFunction& mf) const; // Gets representative value for defuzzification
 
-    // Tuning Helpers
+    /**
+     * @brief Calculate representative centroid value for defuzzification
+     * @param mf Membership function to analyze
+     * @return Centroid value for the membership function
+     */
+    float getMfCentroid(const MembershipFunction& mf) const;
+
+    // Parameter Optimization (Auto-Tuning)
+
+    /**
+     * @brief Evaluate fitness of current membership function parameters
+     * @param trainingInputs 2D array of training input scenarios
+     * @param trainingOutputs Expected output values for training
+     * @param numSets Number of training scenarios
+     * @param outputVarIndex Target output variable for evaluation
+     * @return Fitness score (lower is better, typically MSE)
+     */
     float evaluateFitness(float** trainingInputs, float* trainingOutputs, int numSets, int outputVarIndex);
-    void mutateParameters(float mutationRate, float mutationRange);
-    void backupParameters(MembershipFunction& dest, const MembershipFunction& src);
-    void restoreParameters(MembershipFunction& dest, const MembershipFunction& src);
-    bool checkMfParamOrder(const MembershipFunction& mf) const; // Ensure params are ordered correctly
 
-    // Internal Finders (using indices for rules)
+    /**
+     * @brief Apply random mutations to membership function parameters
+     * @param mutationRate Probability of mutating each parameter (0.0-1.0)
+     * @param mutationRange Maximum fractional change per mutation
+     */
+    void mutateParameters(float mutationRate, float mutationRange);
+
+    /**
+     * @brief Create backup copy of membership function parameters
+     * @param dest Destination for backup copy
+     * @param src Source membership function to backup
+     */
+    void backupParameters(MembershipFunction& dest, const MembershipFunction& src);
+
+    /**
+     * @brief Restore membership function parameters from backup
+     * @param dest Destination membership function to restore
+     * @param src Backup source to restore from
+     */
+    void restoreParameters(MembershipFunction& dest, const MembershipFunction& src);
+
+    /**
+     * @brief Validate membership function parameter ordering
+     * @param mf Membership function to validate
+     * @return True if parameters are properly ordered
+     */
+    bool checkMfParamOrder(const MembershipFunction& mf) const;
+
+    // Internal Variable Management
+
+    /**
+     * @brief Find input variable by name (internal use)
+     * @param name Variable name to search for
+     * @return Variable index or -1 if not found
+     */
     int findInputVarIndex(const char* name) const;
+
+    /**
+     * @brief Find output variable by name (internal use)
+     * @param name Variable name to search for
+     * @return Variable index or -1 if not found
+     */
     int findOutputVarIndex(const char* name) const;
 };
 
