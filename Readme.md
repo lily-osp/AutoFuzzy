@@ -1,34 +1,57 @@
-# AutoFuzzyNG
+# AutoFuzzy
 
-**Version:** 1.1.0
+**Version:** 1.2.0
 
 AutoFuzzy is a robust and flexible Arduino library providing fuzzy logic capabilities with multiple-input/multiple-output support, enhanced rule definition, better error handling, and a heuristic parameter tuning mechanism. It's designed to simplify implementing fuzzy controllers for Arduino projects while offering more advanced control and customization compared to basic implementations.
 
----
+## Table of Contents
+
+- [Key Features](#key-features)
+- [Installation](#installation)
+- [Core Fuzzy Logic Concepts](#core-fuzzy-logic-concepts)
+- [API Reference](#api-reference)
+  - [Class Initialization](#class-initialization)
+  - [Variable Management](#variable-management)
+  - [Membership Function Management](#membership-function-management)
+  - [Rule Management](#rule-management)
+  - [Fuzzy Inference](#fuzzy-inference)
+  - [Automated Tuning](#automated-tuning)
+  - [Utility](#utility)
+- [Membership Function Details](#membership-function-details)
+  - [Triangular Membership Function](#triangular-membership-function)
+  - [Trapezoidal Membership Function](#trapezoidal-membership-function)
+- [Fuzzy Logic Operations Math](#fuzzy-logic-operations-math)
+- [Configuration](#configuration)
+- [Basic Usage Example](#basic-usage-example)
+- [Advanced Usage](#advanced-usage)
+- [Error Handling](#error-handling)
+- [Memory Usage & Performance](#memory-usage--performance)
+- [Limitations](#limitations)
+- [Troubleshooting & Best Practices](#troubleshooting--best-practices)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Key Features
 
-*   **Flexible API:** Easy-to-use functions for defining inputs, outputs, membership functions, and rules.
-*   **Multiple Inputs/Outputs (MIMO):** Supports systems with multiple sensor inputs and multiple control outputs.
-*   **Multi-Antecedent Rules:** Define complex rules like `IF temperature IS hot AND humidity IS high THEN ...` using `AND` or `OR` logic.
-*   **Standard Membership Functions:** Includes Triangular and Trapezoidal shapes.
-*   **Robust Error Handling:** Functions return `FuzzyResult` codes, with a helper to get descriptive error messages.
-*   **Heuristic Parameter Tuning:** `autoTune()` function attempts to optimize Membership Function parameters using random mutation and a fitness function based on training data.
-*   **Configurable Limits:** Maximum number of variables, MFs, rules, etc., can be adjusted via preprocessor defines.
-*   **Clear Structure:** Uses enums (`MfType`, `FuzzyOperator`, `FuzzyResult`) and structs (`FuzzyInput`, `Antecedent`, `Consequent`) for better code readability and safety.
-*   **Memory Conscious:** Designed with Arduino limitations in mind (though `autoTune` uses dynamic memory).
-
----
+- **Flexible API:** Easy-to-use functions for defining inputs, outputs, membership functions, and rules
+- **Multiple Inputs/Outputs (MIMO):** Supports systems with multiple sensor inputs and multiple control outputs
+- **Multi-Antecedent Rules:** Define complex rules like `IF temperature IS hot AND humidity IS high THEN ...` using `AND` or `OR` logic
+- **Standard Membership Functions:** Includes Triangular and Trapezoidal shapes
+- **Robust Error Handling:** Functions return `FuzzyResult` codes, with a helper to get descriptive error messages
+- **Heuristic Parameter Tuning:** `autoTune()` function attempts to optimize Membership Function parameters using random mutation and a fitness function based on training data
+- **Configurable Limits:** Maximum number of variables, MFs, rules, etc., can be adjusted via preprocessor defines
+- **Clear Structure:** Uses enums (`MfType`, `FuzzyOperator`, `FuzzyResult`) and structs (`FuzzyInput`, `Antecedent`, `Consequent`) for better code readability and safety
+- **Memory Conscious:** Designed with Arduino limitations in mind (though `autoTune` uses dynamic memory)
 
 ## Installation
 
-1.  Download the latest release ZIP file from the repository.
-2.  In the Arduino IDE, go to `Sketch` > `Include Library` > `Add .ZIP Library...`
-3.  Select the downloaded ZIP file (`AutoFuzzy-main.zip` or similar).
-4.  The library will appear in `Sketch > Include Library > AutoFuzzy`.
-5.  (Optional) Restart the Arduino IDE.
+1. Download the latest release ZIP file from the repository
+2. In the Arduino IDE, go to `Sketch > Include Library > Add .ZIP Library...`
+3. Select the downloaded ZIP file (`AutoFuzzy-main.zip` or similar)
+4. The library will appear in `Sketch > Include Library > AutoFuzzy`
+5. (Optional) Restart the Arduino IDE
 
----
+Alternatively, you can clone or download this repository and place the `AutoFuzzy` folder in your Arduino libraries directory.
 
 ## Core Fuzzy Logic Concepts
 
@@ -47,8 +70,6 @@ AutoFuzzy implements a Mamdani-style fuzzy inference system with some simplifica
     *   **Rule Evaluation (Activation):** For each rule, the degrees of membership from the fuzzified inputs are combined using fuzzy operators (`AND` usually MIN, `OR` usually MAX) to determine the rule's activation strength (a value between 0 and 1).
     *   **Aggregation:** (Implicit in AutoFuzzy's defuzzification) The output fuzzy sets suggested by all activated rules are combined.
     *   **Defuzzification:** The combined fuzzy output is converted back into a single crisp numerical value that can be used to control an actuator. AutoFuzzy uses a simplified **Center of Sums** (or weighted average) method.
-
----
 
 ## API Reference
 
@@ -76,28 +97,28 @@ AutoFuzzy fuzzy; // Create an instance
 *   **Returns:** The integer index of the added variable (>= 0) on success, or -1 on error.
 
 **`int findVariable(const char* name) const`**
-*   **Purpose:** Finds the index of a variable (input or output) by its name.
-*   **Parameters:**
-    *   `name`: The name of the variable to find.
-*   **Returns:** The integer index of the variable if found, or -1 if not found or name is null.
+* **Purpose:** Finds the index of a variable (input or output) by its name
+* **Parameters:**
+  * `name`: The name of the variable to find
+* **Returns:** The integer index of the variable if found, or -1 if not found or name is null
 
 ### Membership Function (MF) Management
 
 **`FuzzyResult addTriangularMF(int varIndex, const char* mfName, float a, float b, float c)`**
 **`FuzzyResult addTriangularMF(const char* varName, const char* mfName, float a, float b, float c)`**
-*   **Purpose:** Adds a triangular membership function to a specified variable.
-*   **Parameters:**
-    *   `varIndex` / `varName`: Index or name of the variable to add the MF to.
-    *   `mfName`: A unique C-string name for this MF *within this variable* (max length `FUZZY_MAX_NAME_LEN - 1`).
-    *   `a`: The left foot of the triangle (membership starts increasing from 0).
-    *   `b`: The peak of the triangle (membership is 1.0).
-    *   `c`: The right foot of the triangle (membership returns to 0). Must satisfy `a <= b <= c`.
-*   **Returns:** `FuzzyResult` enum value:
-    *   `FUZZY_OK`: Success.
-    *   `FUZZY_ERROR_VAR_NOT_FOUND`: Variable not found.
-    *   `FUZZY_ERROR_TOO_MANY_MFS`: Max MFs for this variable reached.
-    *   `FUZZY_ERROR_INVALID_PARAMS`: Invalid parameters (e.g., `a > b`, duplicate `mfName` for this variable).
-    *   `FUZZY_ERROR_NULL_POINTER`: `mfName` was null.
+* **Purpose:** Adds a triangular membership function to a specified variable
+* **Parameters:**
+  * `varIndex` / `varName`: Index or name of the variable to add the MF to
+  * `mfName`: A unique C-string name for this MF within this variable (max length `FUZZY_MAX_NAME_LEN - 1`)
+  * `a`: The left foot of the triangle (membership starts increasing from 0)
+  * `b`: The peak of the triangle (membership is 1.0)
+  * `c`: The right foot of the triangle (membership returns to 0). Must satisfy `a <= b <= c`
+* **Returns:** `FuzzyResult` enum value:
+  * `FUZZY_OK`: Success
+  * `FUZZY_ERROR_VAR_NOT_FOUND`: Variable not found
+  * `FUZZY_ERROR_TOO_MANY_MFS`: Max MFs for this variable reached
+  * `FUZZY_ERROR_INVALID_PARAMS`: Invalid parameters (e.g., `a > b`, duplicate `mfName` for this variable)
+  * `FUZZY_ERROR_NULL_POINTER`: `mfName` was null
 
 **`FuzzyResult addTrapezoidalMF(int varIndex, const char* mfName, float a, float b, float c, float d)`**
 **`FuzzyResult addTrapezoidalMF(const char* varName, const char* mfName, float a, float b, float c, float d)`**
@@ -295,29 +316,60 @@ AutoFuzzy uses a simplified **Center of Sums** (also related to Weighted Average
 
 ---
 
-## Configuration (Advanced)
+## Configuration
 
-You can change the maximum limits of the library *before* including `AutoFuzzy.h` in your sketch by defining override macros:
+You can change the maximum limits of the library *before* including `AutoFuzzy.h` in your sketch by defining override macros. This is especially useful for larger Arduino boards (Mega, ESP32, etc.) that have more RAM.
 
 ```cpp
-#define FUZZY_MAX_VARS 12           // Increase max variables to 12
-#define FUZZY_MAX_RULES 100         // Increase max rules to 100
-#define FUZZY_MAX_MF_PER_VAR 7      // Allow up to 7 MFs per variable
-// ... other limits like FUZZY_MAX_ANTECEDENTS_PER_RULE, FUZZY_MAX_NAME_LEN
+// Define limits BEFORE including the header
+#define FUZZY_MAX_VARS 6           // Max total variables (inputs + outputs)
+#define FUZZY_MAX_MF_PER_VAR 5     // Max MFs per variable
+#define FUZZY_MAX_RULES 15         // Max total rules
+#define FUZZY_MAX_ANTECEDENTS_PER_RULE 3  // Max conditions per rule
+#define FUZZY_MAX_NAME_LEN 15      // Max name length
 
 #include <AutoFuzzy.h> // Now include the library
 
 // ... rest of your sketch
 ```
 
-**Default Limits:**
-*   `FUZZY_MAX_VARS`: 10
-*   `FUZZY_MAX_MF_PER_VAR`: 5
-*   `FUZZY_MAX_RULES`: 50
-*   `FUZZY_MAX_ANTECEDENTS_PER_RULE`: 5
-*   `FUZZY_MAX_NAME_LEN`: 20
+### Default Limits (Arduino Mega Compatible)
 
-**Caution:** Increasing these limits significantly increases the static memory (RAM) usage of the library.
+The library uses optimized defaults for Arduino Mega (8KB RAM) to support complex fuzzy systems:
+
+*   `FUZZY_MAX_VARS`: 6 (total input + output variables)
+*   `FUZZY_MAX_MF_PER_VAR`: 5 (membership functions per variable)
+*   `FUZZY_MAX_RULES`: 15 (total rules)
+*   `FUZZY_MAX_ANTECEDENTS_PER_RULE`: 3 (conditions per rule)
+*   `FUZZY_MAX_NAME_LEN`: 12 (character limit for names)
+
+### Recommended Limits for Different Boards
+
+**Arduino Uno/Nano (2KB RAM - Basic Applications):**
+```cpp
+#define FUZZY_MAX_VARS 3
+#define FUZZY_MAX_MF_PER_VAR 3
+#define FUZZY_MAX_RULES 8
+#define FUZZY_MAX_ANTECEDENTS_PER_RULE 2
+```
+
+**Arduino Mega (8KB RAM - Standard Applications):**
+```cpp
+#define FUZZY_MAX_VARS 8
+#define FUZZY_MAX_MF_PER_VAR 6
+#define FUZZY_MAX_RULES 20
+#define FUZZY_MAX_ANTECEDENTS_PER_RULE 4
+```
+
+**ESP32 (520KB RAM - Advanced Applications):**
+```cpp
+#define FUZZY_MAX_VARS 12
+#define FUZZY_MAX_MF_PER_VAR 8
+#define FUZZY_MAX_RULES 50
+#define FUZZY_MAX_ANTECEDENTS_PER_RULE 5
+```
+
+**Note:** Examples are configured for Arduino Mega. Adjust limits based on your specific application requirements and available memory.
 
 ---
 
@@ -533,20 +585,10 @@ if (result != FUZZY_OK) {
 *   **Memory:** If running out of RAM, reduce the `FUZZY_MAX_...` limits or simplify your fuzzy system (fewer variables/MFs/rules). Avoid running `autoTune` on very low-memory boards if possible.
 *   **Start Simple:** Build your fuzzy system incrementally. Test SISO parts before combining them into MIMO.
 
----
-
 ## Contributing
 
-Contributions are welcome! Please follow standard GitHub practices:
-
-1.  Fork the repository.
-2.  Create a new branch for your feature or bug fix.
-3.  Commit your changes with clear messages.
-4.  Push your branch to your fork.
-5.  Create a Pull Request back to the main repository.
-
----
+Contributions are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for detailed guidelines.
 
 ## License
 
-This library is released under the MIT License. See the `LICENSE` file for details.
+This library is released under the MIT License. See the [LICENSE](LICENSE) file for details.

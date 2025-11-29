@@ -5,8 +5,11 @@
 
 // --- Configuration ---
 // You can override these by defining them BEFORE including AutoFuzzy.h
+// Default values are optimized for Arduino Mega (8KB RAM) to support complex fuzzy systems.
+// For smaller boards (Uno, Nano), reduce these values. For larger boards (ESP32), increase them.
+
 #ifndef FUZZY_MAX_VARS
-#define FUZZY_MAX_VARS 10 // Total number of input and output variables
+#define FUZZY_MAX_VARS 6 // Total number of input and output variables (Mega optimized)
 #endif
 
 #ifndef FUZZY_MAX_MF_PER_VAR
@@ -14,15 +17,15 @@
 #endif
 
 #ifndef FUZZY_MAX_RULES
-#define FUZZY_MAX_RULES 50 // Max total rules
+#define FUZZY_MAX_RULES 15 // Max total rules (Mega optimized)
 #endif
 
 #ifndef FUZZY_MAX_ANTECEDENTS_PER_RULE
-#define FUZZY_MAX_ANTECEDENTS_PER_RULE 5 // Max IF conditions per rule (e.g., IF x is A AND y is B)
+#define FUZZY_MAX_ANTECEDENTS_PER_RULE 3 // Max IF conditions per rule
 #endif
 
 #ifndef FUZZY_MAX_NAME_LEN
-#define FUZZY_MAX_NAME_LEN 20 // Max length for variable and MF names (including null terminator)
+#define FUZZY_MAX_NAME_LEN 12 // Max length for variable and MF names (including null terminator)
 #endif
 // --- End Configuration ---
 

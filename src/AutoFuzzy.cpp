@@ -399,15 +399,52 @@ float AutoFuzzy::calculateRuleActivation(const Rule& rule, const FuzzyInput inpu
 float AutoFuzzy::getMfCentroid(const MembershipFunction& mf) const
 {
     switch (mf.type) {
-    case MF_TRIANGULAR:
-        // Centroid of a triangle is often approximated by its peak for simplicity here.
-        // A more accurate centroid calculation is more complex.
-        // return (mf.params[0] + mf.params[1] + mf.params[2]) / 3.0f; // Actual centroid
-        return mf.params[1]; // Peak (simpler, common in Sugeno-like outputs)
-    case MF_TRAPEZOIDAL:
-        // Centroid of the flat top section for simplicity
-        return (mf.params[1] + mf.params[2]) / 2.0f;
-        // More accurate centroid requires calculating area moments
+    case MF_TRIANGULAR: {
+        // For triangular MF with points (a, b, c), centroid = (a + b + c) / 3
+        float a = mf.params[0], b = mf.params[1], c = mf.params[2];
+        return (a + b + c) / 3.0f;
+    }
+    case MF_TRAPEZOIDAL: {
+        // For trapezoidal MF with points (a, b, c, d), calculate true centroid
+        // This accounts for both triangular ramps and flat plateau
+        float a = mf.params[0], b = mf.params[1], c = mf.params[2], d = mf.params[3];
+
+        // Handle degenerate cases
+        if (fabs(b - a) < FLT_EPSILON && fabs(d - c) < FLT_EPSILON) {
+            // Pure rectangle: centroid at center
+            return (a + d) / 2.0f;
+        } else if (fabs(b - a) < FLT_EPSILON) {
+            // Left shoulder only: trapezoid degenerates to triangle on right
+            float triangle_centroid = (c + d + d) / 3.0f;  // Triangle (c,d,d)
+            float plateau_centroid = (a + c) / 2.0f;       // Rectangle (a,c)
+            float triangle_area = (d - c) / 2.0f;          // Area of right triangle
+            float plateau_area = c - a;                     // Area of rectangle
+            return (triangle_centroid * triangle_area + plateau_centroid * plateau_area) /
+                   (triangle_area + plateau_area);
+        } else if (fabs(d - c) < FLT_EPSILON) {
+            // Right shoulder only: trapezoid degenerates to triangle on left
+            float triangle_centroid = (a + a + b) / 3.0f;  // Triangle (a,a,b)
+            float plateau_centroid = (b + d) / 2.0f;       // Rectangle (b,d)
+            float triangle_area = (b - a) / 2.0f;          // Area of left triangle
+            float plateau_area = d - b;                     // Area of rectangle
+            return (triangle_centroid * triangle_area + plateau_centroid * plateau_area) /
+                   (triangle_area + plateau_area);
+        } else {
+            // Full trapezoid: two triangles + rectangle
+            float left_triangle_centroid = (a + a + b) / 3.0f;   // Triangle (a,a,b)
+            float right_triangle_centroid = (c + d + d) / 3.0f;  // Triangle (c,d,d)
+            float plateau_centroid = (b + c) / 2.0f;             // Rectangle (b,c)
+
+            float left_triangle_area = (b - a) / 2.0f;           // Area of left triangle
+            float right_triangle_area = (d - c) / 2.0f;          // Area of right triangle
+            float plateau_area = c - b;                           // Area of rectangle
+
+            float total_area = left_triangle_area + plateau_area + right_triangle_area;
+            return (left_triangle_centroid * left_triangle_area +
+                    plateau_centroid * plateau_area +
+                    right_triangle_centroid * right_triangle_area) / total_area;
+        }
+    }
     default:
         return NAN; // Unknown type
     }

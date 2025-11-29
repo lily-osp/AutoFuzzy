@@ -59,39 +59,39 @@ void setup()
     Serial.println(" - Output 'FanSpeed' (Idx " + String(fanSpeedVar) + ") added.");
 
     // 3. Add Membership Functions (MFs)
-    // Using Trapezoidal MFs for smooth transitions: addTrapezoidalMF(var, name, a, b, c, d)
+    // Using Triangular MFs for memory efficiency: addTriangularMF(var, name, a, b, c)
     // Temperature MFs
-    result = fuzzy.addTrapezoidalMF(tempVar, "Cold", 0.0f, 5.0f, 15.0f, 20.0f);
+    result = fuzzy.addTriangularMF(tempVar, "Cold", 0.0f, 15.0f, 25.0f);
     if (result != FUZZY_OK)
         Serial.println("Error adding MF 'Cold': " + String(fuzzy.getResultString(result)));
-    result = fuzzy.addTrapezoidalMF(tempVar, "Comfortable", 18.0f, 22.0f, 26.0f, 30.0f);
+    result = fuzzy.addTriangularMF(tempVar, "Warm", 20.0f, 30.0f, 40.0f);
     if (result != FUZZY_OK)
-        Serial.println("Error adding MF 'Comfortable': " + String(fuzzy.getResultString(result)));
-    result = fuzzy.addTrapezoidalMF(tempVar, "Hot", 28.0f, 35.0f, 45.0f, 50.0f);
+        Serial.println("Error adding MF 'Warm': " + String(fuzzy.getResultString(result)));
+    result = fuzzy.addTriangularMF(tempVar, "Hot", 35.0f, 45.0f, 50.0f);
     if (result != FUZZY_OK)
         Serial.println("Error adding MF 'Hot': " + String(fuzzy.getResultString(result)));
     Serial.println(" - MFs for 'Temperature' added.");
 
     // Humidity MFs
-    result = fuzzy.addTrapezoidalMF(humidityVar, "Dry", 0.0f, 10.0f, 25.0f, 40.0f);
+    result = fuzzy.addTriangularMF(humidityVar, "Dry", 0.0f, 25.0f, 50.0f);
     if (result != FUZZY_OK)
         Serial.println("Error adding MF 'Dry': " + String(fuzzy.getResultString(result)));
-    result = fuzzy.addTrapezoidalMF(humidityVar, "Normal", 30.0f, 45.0f, 55.0f, 70.0f);
+    result = fuzzy.addTriangularMF(humidityVar, "Normal", 40.0f, 60.0f, 80.0f);
     if (result != FUZZY_OK)
         Serial.println("Error adding MF 'Normal': " + String(fuzzy.getResultString(result)));
-    result = fuzzy.addTrapezoidalMF(humidityVar, "Humid", 60.0f, 75.0f, 90.0f, 100.0f);
+    result = fuzzy.addTriangularMF(humidityVar, "Humid", 70.0f, 85.0f, 100.0f);
     if (result != FUZZY_OK)
         Serial.println("Error adding MF 'Humid': " + String(fuzzy.getResultString(result)));
     Serial.println(" - MFs for 'Humidity' added.");
 
     // Fan Speed MFs
-    result = fuzzy.addTrapezoidalMF(fanSpeedVar, "Slow", 0.0f, 10.0f, 25.0f, 40.0f);
+    result = fuzzy.addTriangularMF(fanSpeedVar, "Slow", 0.0f, 20.0f, 40.0f);
     if (result != FUZZY_OK)
         Serial.println("Error adding MF 'Slow': " + String(fuzzy.getResultString(result)));
-    result = fuzzy.addTrapezoidalMF(fanSpeedVar, "Medium", 30.0f, 45.0f, 55.0f, 70.0f);
+    result = fuzzy.addTriangularMF(fanSpeedVar, "Medium", 30.0f, 50.0f, 70.0f);
     if (result != FUZZY_OK)
         Serial.println("Error adding MF 'Medium': " + String(fuzzy.getResultString(result)));
-    result = fuzzy.addTrapezoidalMF(fanSpeedVar, "Fast", 60.0f, 80.0f, 95.0f, 100.0f);
+    result = fuzzy.addTriangularMF(fanSpeedVar, "Fast", 60.0f, 80.0f, 100.0f);
     if (result != FUZZY_OK)
         Serial.println("Error adding MF 'Fast': " + String(fuzzy.getResultString(result)));
     Serial.println(" - MFs for 'FanSpeed' added.");
@@ -99,10 +99,9 @@ void setup()
     // 4. Add Fuzzy Rules (using Antecedent/Consequent structs for multi-input rules)
     // Get MF indices needed for rules (more robust than using names repeatedly)
     int tempColdMf = fuzzy.findMF(tempVar, "Cold");
-    int tempComfortMf = fuzzy.findMF(tempVar, "Comfortable");
+    int tempWarmMf = fuzzy.findMF(tempVar, "Warm");
     int tempHotMf = fuzzy.findMF(tempVar, "Hot");
     int humDryMf = fuzzy.findMF(humidityVar, "Dry");
-    int humNormalMf = fuzzy.findMF(humidityVar, "Normal");
     int humHumidMf = fuzzy.findMF(humidityVar, "Humid");
     int fanSlowMf = fuzzy.findMF(fanSpeedVar, "Slow");
     int fanMediumMf = fuzzy.findMF(fanSpeedVar, "Medium");
@@ -115,33 +114,20 @@ void setup()
     if (result != FUZZY_OK)
         Serial.println("Error adding Rule 1: " + String(fuzzy.getResultString(result)));
 
-    // Rule 2: IF Temperature IS Comfortable AND Humidity IS Normal THEN FanSpeed IS Slow
-    AutoFuzzy::Antecedent rule2_ifs[] = { { tempVar, tempComfortMf }, { humidityVar, humNormalMf } };
-    AutoFuzzy::Consequent rule2_then = { fanSpeedVar, fanSlowMf };
+    // Rule 2: IF Temperature IS Warm AND Humidity IS Humid THEN FanSpeed IS Medium
+    AutoFuzzy::Antecedent rule2_ifs[] = { { tempVar, tempWarmMf }, { humidityVar, humHumidMf } };
+    AutoFuzzy::Consequent rule2_then = { fanSpeedVar, fanMediumMf };
     result = fuzzy.addRule(rule2_ifs, 2, FUZZY_AND, rule2_then); // Use the full version for multi-antecedent
     if (result != FUZZY_OK)
         Serial.println("Error adding Rule 2: " + String(fuzzy.getResultString(result)));
 
-    // Rule 3: IF Temperature IS Hot AND Humidity IS Normal THEN FanSpeed IS Medium
-    AutoFuzzy::Antecedent rule3_ifs[] = { { tempVar, tempHotMf }, { humidityVar, humNormalMf } };
-    AutoFuzzy::Consequent rule3_then = { fanSpeedVar, fanMediumMf };
-    result = fuzzy.addRule(rule3_ifs, 2, FUZZY_AND, rule3_then);
+    // Rule 3: IF Temperature IS Hot THEN FanSpeed IS Fast
+    AutoFuzzy::Antecedent rule3_if = { tempVar, tempHotMf };
+    AutoFuzzy::Consequent rule3_then = { fanSpeedVar, fanFastMf };
+    result = fuzzy.addRule(rule3_if, rule3_then);
     if (result != FUZZY_OK)
         Serial.println("Error adding Rule 3: " + String(fuzzy.getResultString(result)));
 
-    // Rule 4: IF Temperature IS Hot AND Humidity IS Humid THEN FanSpeed IS Fast
-    AutoFuzzy::Antecedent rule4_ifs[] = { { tempVar, tempHotMf }, { humidityVar, humHumidMf } };
-    AutoFuzzy::Consequent rule4_then = { fanSpeedVar, fanFastMf };
-    result = fuzzy.addRule(rule4_ifs, 2, FUZZY_AND, rule4_then);
-    if (result != FUZZY_OK)
-        Serial.println("Error adding Rule 4: " + String(fuzzy.getResultString(result)));
-
-    // Rule 5: IF Temperature IS Comfortable AND Humidity IS Humid THEN FanSpeed IS Medium
-    AutoFuzzy::Antecedent rule5_ifs[] = { { tempVar, tempComfortMf }, { humidityVar, humHumidMf } };
-    AutoFuzzy::Consequent rule5_then = { fanSpeedVar, fanMediumMf };
-    result = fuzzy.addRule(rule5_ifs, 2, FUZZY_AND, rule5_then);
-    if (result != FUZZY_OK)
-        Serial.println("Error adding Rule 5: " + String(fuzzy.getResultString(result)));
     Serial.println(" - Fuzzy Rules added.");
 
     // --- Optional: Auto Tuning Placeholder ---
