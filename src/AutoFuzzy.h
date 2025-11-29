@@ -1,139 +1,287 @@
+/**
+ * @file AutoFuzzy.h
+ * @brief AutoFuzzy Fuzzy Logic Library Header
+ *
+ * A comprehensive fuzzy logic inference system for Arduino platforms,
+ * featuring Mamdani-style inference, heuristic parameter tuning, and
+ * optimized performance for microcontroller applications.
+ */
+
 #ifndef AutoFuzzy_h
 #define AutoFuzzy_h
 
 #include "Arduino.h"
 
-// --- Configuration ---
-// You can override these by defining them BEFORE including AutoFuzzy.h
-// Default values are optimized for Arduino Mega (8KB RAM) to support complex fuzzy systems.
-// For smaller boards (Uno, Nano), reduce these values. For larger boards (ESP32), increase them.
+/**
+ * @defgroup Configuration Library Configuration
+ * @brief Preprocessor defines for customizing memory allocation
+ *
+ * Define these macros BEFORE including AutoFuzzy.h to customize
+ * memory limits for your specific Arduino platform.
+ * @{
+ */
 
+/** Maximum number of linguistic variables (inputs + outputs) */
 #ifndef FUZZY_MAX_VARS
-#define FUZZY_MAX_VARS 6 // Total number of input and output variables (Mega optimized)
+#define FUZZY_MAX_VARS 6
 #endif
 
+/** Maximum membership functions per linguistic variable */
 #ifndef FUZZY_MAX_MF_PER_VAR
-#define FUZZY_MAX_MF_PER_VAR 5 // Max membership functions per variable
+#define FUZZY_MAX_MF_PER_VAR 5
 #endif
 
+/** Maximum fuzzy rules in the knowledge base */
 #ifndef FUZZY_MAX_RULES
-#define FUZZY_MAX_RULES 15 // Max total rules (Mega optimized)
+#define FUZZY_MAX_RULES 15
 #endif
 
+/** Maximum antecedent conditions per rule */
 #ifndef FUZZY_MAX_ANTECEDENTS_PER_RULE
-#define FUZZY_MAX_ANTECEDENTS_PER_RULE 3 // Max IF conditions per rule
+#define FUZZY_MAX_ANTECEDENTS_PER_RULE 3
 #endif
 
+/** Maximum length for variable and membership function names */
 #ifndef FUZZY_MAX_NAME_LEN
-#define FUZZY_MAX_NAME_LEN 12 // Max length for variable and MF names (including null terminator)
+#define FUZZY_MAX_NAME_LEN 12
 #endif
-// --- End Configuration ---
 
-// Forward declaration
+/** @} */
+
+// Forward Declarations
 class AutoFuzzy;
 
-// --- Type Definitions ---
+// Core Data Types
 
-// Represents a specific input value for evaluation
+/**
+ * @brief Input value structure for fuzzy inference evaluation
+ *
+ * Pairs a variable index with its current crisp input value for
+ * fuzzy inference processing.
+ */
 typedef struct {
-    uint8_t varIndex; // Index of the input variable
-    float value; // Current value of the input variable
+    uint8_t varIndex;  /**< Index of the input linguistic variable */
+    float value;       /**< Current crisp input value */
 } FuzzyInput;
 
-// Represents the overall result of an operation
+/**
+ * @brief Operation result codes
+ *
+ * Comprehensive error reporting for all library operations,
+ * enabling robust error handling and debugging.
+ */
 enum FuzzyResult {
-    FUZZY_OK = 0,
-    FUZZY_ERROR_TOO_MANY_VARS,
-    FUZZY_ERROR_TOO_MANY_MFS,
-    FUZZY_ERROR_TOO_MANY_RULES,
-    FUZZY_ERROR_TOO_MANY_ANTECEDENTS,
-    FUZZY_ERROR_VAR_NOT_FOUND,
-    FUZZY_ERROR_MF_NOT_FOUND,
-    FUZZY_ERROR_INVALID_PARAMS,
-    FUZZY_ERROR_INVALID_RULE, // e.g., input as consequent, output as antecedent
-    FUZZY_ERROR_NULL_POINTER,
-    FUZZY_ERROR_INDEX_OUT_OF_BOUNDS,
-    FUZZY_ERROR_NO_RULES_FIRED,
-    FUZZY_ERROR_DIVIDE_BY_ZERO
+    FUZZY_OK = 0,                         /**< Operation completed successfully */
+    FUZZY_ERROR_TOO_MANY_VARS,            /**< Variable limit exceeded */
+    FUZZY_ERROR_TOO_MANY_MFS,             /**< Membership function limit exceeded */
+    FUZZY_ERROR_TOO_MANY_RULES,           /**< Rule limit exceeded */
+    FUZZY_ERROR_TOO_MANY_ANTECEDENTS,     /**< Antecedent limit exceeded */
+    FUZZY_ERROR_VAR_NOT_FOUND,            /**< Specified variable not found */
+    FUZZY_ERROR_MF_NOT_FOUND,             /**< Specified membership function not found */
+    FUZZY_ERROR_INVALID_PARAMS,           /**< Invalid parameters provided */
+    FUZZY_ERROR_INVALID_RULE,             /**< Invalid rule structure */
+    FUZZY_ERROR_NULL_POINTER,             /**< Null pointer parameter */
+    FUZZY_ERROR_INDEX_OUT_OF_BOUNDS,      /**< Array index out of bounds */
+    FUZZY_ERROR_NO_RULES_FIRED,           /**< No rules activated during inference */
+    FUZZY_ERROR_DIVIDE_BY_ZERO           /**< Division by zero in calculations */
 };
 
-// Type of Membership Function
+/**
+ * @brief Supported membership function types
+ */
 enum MfType {
-    MF_TRIANGULAR,
-    MF_TRAPEZOIDAL
-    // Add other types here if needed (e.g., Gaussian)
+    MF_TRIANGULAR,   /**< Triangular membership function (3 parameters) */
+    MF_TRAPEZOIDAL   /**< Trapezoidal membership function (4 parameters) */
 };
 
-// Fuzzy Logic Operators for combining rule antecedents
+/**
+ * @brief Fuzzy logic operators for rule antecedent combination
+ */
 enum FuzzyOperator {
-    FUZZY_AND = 0, // Typically MIN operator
-    FUZZY_OR = 1 // Typically MAX operator
-    // FUZZY_AND_PROD, // Product AND
-    // FUZZY_OR_PROBOR // Probabilistic OR
+    FUZZY_AND = 0,   /**< Logical AND (typically MIN operator) */
+    FUZZY_OR = 1     /**< Logical OR (typically MAX operator) */
 };
 
-// --- Class Definition ---
-
+/**
+ * @class AutoFuzzy
+ * @brief Main fuzzy logic controller class
+ *
+ * Provides a complete Mamdani-style fuzzy inference system with
+ * variable management, membership functions, rule definition,
+ * inference engine, and heuristic parameter tuning.
+ */
 class AutoFuzzy {
 public:
+    /**
+     * @brief Constructor - Initialize fuzzy controller
+     */
     AutoFuzzy();
 
-    // --- Variable Management ---
-    // Adds an input variable. Returns variable index or -1 on error.
+    // Variable Management
+
+    /**
+     * @brief Add an input linguistic variable
+     * @param name Variable name (max FUZZY_MAX_NAME_LEN-1 characters)
+     * @param min Minimum valid range value
+     * @param max Maximum valid range value
+     * @return Variable index (≥0) on success, -1 on error
+     */
     int addInput(const char* name, float min = 0.0f, float max = 1.0f);
-    // Adds an output variable. Returns variable index or -1 on error.
+
+    /**
+     * @brief Add an output linguistic variable
+     * @param name Variable name (max FUZZY_MAX_NAME_LEN-1 characters)
+     * @param min Minimum valid range value
+     * @param max Maximum valid range value
+     * @return Variable index (≥0) on success, -1 on error
+     */
     int addOutput(const char* name, float min = 0.0f, float max = 1.0f);
-    int findVariable(const char* name) const; // Returns index or -1
 
-    // --- Membership Function Management ---
+    /**
+     * @brief Find variable by name
+     * @param name Variable name to search for
+     * @return Variable index (≥0) if found, -1 if not found
+     */
+    int findVariable(const char* name) const;
+
+    // Membership Function Management
+
+    /**
+     * @brief Add triangular membership function by variable index
+     * @param varIndex Target variable index
+     * @param mfName Membership function name
+     * @param a Left foot point
+     * @param b Peak point
+     * @param c Right foot point
+     * @return FUZZY_OK on success, error code otherwise
+     */
     FuzzyResult addTriangularMF(int varIndex, const char* mfName, float a, float b, float c);
+
+    /**
+     * @brief Add triangular membership function by variable name
+     * @param varName Target variable name
+     * @param mfName Membership function name
+     * @param a Left foot point
+     * @param b Peak point
+     * @param c Right foot point
+     * @return FUZZY_OK on success, error code otherwise
+     */
     FuzzyResult addTriangularMF(const char* varName, const char* mfName, float a, float b, float c);
+
+    /**
+     * @brief Add trapezoidal membership function by variable index
+     * @param varIndex Target variable index
+     * @param mfName Membership function name
+     * @param a Left foot point
+     * @param b Left shoulder point
+     * @param c Right shoulder point
+     * @param d Right foot point
+     * @return FUZZY_OK on success, error code otherwise
+     */
     FuzzyResult addTrapezoidalMF(int varIndex, const char* mfName, float a, float b, float c, float d);
+
+    /**
+     * @brief Add trapezoidal membership function by variable name
+     * @param varName Target variable name
+     * @param mfName Membership function name
+     * @param a Left foot point
+     * @param b Left shoulder point
+     * @param c Right shoulder point
+     * @param d Right foot point
+     * @return FUZZY_OK on success, error code otherwise
+     */
     FuzzyResult addTrapezoidalMF(const char* varName, const char* mfName, float a, float b, float c, float d);
-    int findMF(int varIndex, const char* mfName) const; // Returns MF index or -1
 
-    // --- Rule Management ---
-    // Structure to define one antecedent (IF condition)
+    /**
+     * @brief Find membership function by variable and name
+     * @param varIndex Variable index
+     * @param mfName Membership function name
+     * @return MF index (≥0) if found, -1 if not found
+     */
+    int findMF(int varIndex, const char* mfName) const;
+
+    // Rule Management
+
+    /**
+     * @brief Antecedent condition structure for rule definition
+     */
     struct Antecedent {
-        int varIndex; // Index of the input variable
-        int mfIndex; // Index of the membership function for this variable
-    };
-    // Structure to define the consequent (THEN action)
-    struct Consequent {
-        int varIndex; // Index of the output variable
-        int mfIndex; // Index of the membership function for this variable
+        int varIndex;  /**< Input variable index */
+        int mfIndex;   /**< Membership function index for this variable */
     };
 
-    // Adds a rule: IF (antecedents combined by op) THEN consequent
+    /**
+     * @brief Consequent action structure for rule definition
+     */
+    struct Consequent {
+        int varIndex;  /**< Output variable index */
+        int mfIndex;   /**< Membership function index for this variable */
+    };
+
+    /**
+     * @brief Add complex rule with multiple antecedents
+     * @param antecedents Array of antecedent conditions
+     * @param numAntecedents Number of conditions in array
+     * @param op Logical operator for combining antecedents
+     * @param consequent Result action
+     * @return FUZZY_OK on success, error code otherwise
+     */
     FuzzyResult addRule(const Antecedent antecedents[], int numAntecedents, FuzzyOperator op, const Consequent& consequent);
-    // Helper for simple SISO rules (IF antecedent THEN consequent)
+
+    /**
+     * @brief Add simple single-antecedent rule
+     * @param antecedent Single condition
+     * @param consequent Result action
+     * @return FUZZY_OK on success, error code otherwise
+     */
     FuzzyResult addRule(const Antecedent& antecedent, const Consequent& consequent);
-    // Helper using names (less efficient, more convenient)
+
+    /**
+     * @brief Add rule using variable and MF names
+     * @param ifVar Input variable name
+     * @param ifMF Input membership function name
+     * @param thenVar Output variable name
+     * @param thenMF Output membership function name
+     * @return FUZZY_OK on success, error code otherwise
+     */
     FuzzyResult addRule(const char* ifVar, const char* ifMF, const char* thenVar, const char* thenMF);
 
-    // --- Fuzzy Inference ---
-    // Calculates the fuzzy output based on current inputs
-    // inputs: array of FuzzyInput structs
-    // numInputs: number of elements in the inputs array
-    // resultValue: pointer to store the calculated output
-    // outputVarIndex: index of the output variable to calculate for
-    FuzzyResult evaluate(const FuzzyInput inputs[], int numInputs, float& resultValue, int outputVarIndex = 0); // Defaults to first output var
+    // Fuzzy Inference
 
-    // --- Automated Tuning (Heuristic) ---
-    // Tunes MF parameters based on provided training data using random mutations.
-    // This is a *heuristic* tuner, not a guaranteed optimizer. It needs evaluation data.
-    // trainingInputs: Array of input value arrays (numSets x numInputVars)
-    // trainingOutputs: Array of expected output values (numSets)
-    // numSets: Number of training data points
-    // outputVarIndex: Index of the output variable being tuned
-    // iterations: Number of tuning cycles
-    // mutationRate: Probability (0-1) of mutating a parameter per iteration
-    // mutationRange: Max fractional change (0-1) relative to variable range
+    /**
+     * @brief Execute fuzzy inference for specified output
+     * @param inputs Array of current input values
+     * @param numInputs Number of input values provided
+     * @param resultValue Reference to store calculated output
+     * @param outputVarIndex Target output variable index (default: 0)
+     * @return FUZZY_OK on success, error code otherwise
+     */
+    FuzzyResult evaluate(const FuzzyInput inputs[], int numInputs, float& resultValue, int outputVarIndex = 0);
+
+    // Automated Tuning
+
+    /**
+     * @brief Perform heuristic parameter optimization
+     * @param trainingInputs 2D array of training input scenarios
+     * @param trainingOutputs Array of expected output values
+     * @param numSets Number of training scenarios
+     * @param outputVarIndex Target output variable for optimization
+     * @param iterations Number of optimization cycles (default: 100)
+     * @param mutationRate Parameter mutation probability (default: 0.1)
+     * @param mutationRange Maximum parameter change fraction (default: 0.1)
+     * @return FUZZY_OK on success, error code otherwise
+     */
     FuzzyResult autoTune(float** trainingInputs, float* trainingOutputs, int numSets, int outputVarIndex,
         int iterations = 100, float mutationRate = 0.1f, float mutationRange = 0.1f);
 
-    // --- Utility ---
-    const char* getResultString(FuzzyResult result) const; // Get human-readable error string
+    // Utility Functions
+
+    /**
+     * @brief Convert result code to human-readable string
+     * @param result Result code to convert
+     * @return Descriptive error message string
+     */
+    const char* getResultString(FuzzyResult result) const;
 
 private:
     struct MembershipFunction {

@@ -1,89 +1,151 @@
-#include "AutoFuzzy.h"
-#include <float.h> // For FLT_EPSILON, FLT_MAX
-#include <math.h> // For fabs
-#include <string.h> // For strncpy, strcmp
+/**
+ * @file AutoFuzzy.cpp
+ * @brief AutoFuzzy fuzzy logic library implementation
+ */
 
-// Helper macro for safe string copy
+#include "AutoFuzzy.h"
+#include <float.h>  // For FLT_EPSILON, FLT_MAX
+#include <math.h>   // For fabs, min, max functions
+#include <string.h> // For string operations
+
+/**
+ * @brief Safe string copy macro to prevent buffer overflows
+ * @param dest Destination buffer
+ * @param src Source string
+ * @param n Destination buffer size
+ */
 #define SAFE_STRNCPY(dest, src, n)   \
     do {                             \
         strncpy(dest, src, (n) - 1); \
         dest[(n) - 1] = '\0';        \
     } while (0)
 
-// --- Constructor ---
+/**
+ * @brief Constructor - Initialize fuzzy controller
+ *
+ * Sets up the fuzzy controller with zero-initialized counters
+ * for variables and rules. Ready for configuration.
+ */
 AutoFuzzy::AutoFuzzy()
     : varCount(0)
     , ruleCount(0)
 {
-    // Optional: Initialize random seed if needed for autoTune consistency
-    // randomSeed(analogRead(0)); // Uncomment if needed and using Arduino random
+    // Random seed initialization can be added here if autoTune is used
+    // randomSeed(analogRead(0)); // Uncomment for reproducible autoTune results
 }
 
-// --- Variable Management ---
+/**
+ * @brief Variable Management Implementation
+ */
 
+/**
+ * @brief Add an input linguistic variable
+ *
+ * Creates a new input variable for the fuzzy system with specified
+ * name and valid value range. Input variables represent sensor
+ * readings or external system inputs.
+ *
+ * @param name Variable name (must be unique, max FUZZY_MAX_NAME_LEN-1 chars)
+ * @param min Minimum valid value for this variable
+ * @param max Maximum valid value for this variable
+ * @return Variable index (≥0) on success, -1 on error
+ */
 int AutoFuzzy::addInput(const char* name, float min, float max)
 {
-    if (!name)
-        return -1; // Null pointer check
-    if (varCount >= FUZZY_MAX_VARS)
-        return -1; // Error: Too many vars
+    // Validate input parameters
+    if (!name) return -1;                    // Null pointer check
+    if (varCount >= FUZZY_MAX_VARS) return -1; // Capacity check
 
-    // Check for duplicate name
-    if (findVariable(name) != -1)
-        return -1; // Error: Duplicate name
+    // Prevent duplicate variable names
+    if (findVariable(name) != -1) return -1;   // Duplicate check
 
+    // Initialize new variable
     Variable& var = vars[varCount];
     SAFE_STRNCPY(var.name, name, FUZZY_MAX_NAME_LEN);
-    var.isInput = true;
-    var.min = min;
+    var.isInput = true;      // Mark as input variable
+    var.min = min;          // Set valid range bounds
     var.max = max;
-    var.mfCount = 0;
-    return varCount++; // Return index of the new variable
+    var.mfCount = 0;        // No membership functions initially
+
+    return varCount++;      // Return index and increment counter
 }
 
+/**
+ * @brief Add an output linguistic variable
+ *
+ * Creates a new output variable for the fuzzy system with specified
+ * name and valid value range. Output variables represent actuator
+ * commands or system control outputs.
+ *
+ * @param name Variable name (must be unique, max FUZZY_MAX_NAME_LEN-1 chars)
+ * @param min Minimum valid value for this variable
+ * @param max Maximum valid value for this variable
+ * @return Variable index (≥0) on success, -1 on error
+ */
 int AutoFuzzy::addOutput(const char* name, float min, float max)
 {
-    if (!name)
-        return -1; // Null pointer check
-    if (varCount >= FUZZY_MAX_VARS)
-        return -1; // Error: Too many vars
+    // Validate input parameters
+    if (!name) return -1;                    // Null pointer check
+    if (varCount >= FUZZY_MAX_VARS) return -1; // Capacity check
 
-    // Check for duplicate name
-    if (findVariable(name) != -1)
-        return -1; // Error: Duplicate name
+    // Prevent duplicate variable names
+    if (findVariable(name) != -1) return -1;   // Duplicate check
 
+    // Initialize new variable
     Variable& var = vars[varCount];
     SAFE_STRNCPY(var.name, name, FUZZY_MAX_NAME_LEN);
-    var.isInput = false; // Output variable
-    var.min = min;
+    var.isInput = false;     // Mark as output variable
+    var.min = min;          // Set valid range bounds
     var.max = max;
-    var.mfCount = 0;
-    return varCount++; // Return index of the new variable
+    var.mfCount = 0;        // No membership functions initially
+
+    return varCount++;      // Return index and increment counter
 }
 
+/**
+ * @brief Find variable by name
+ *
+ * Searches for a variable by its name and returns the index
+ * if found. Used for name-based operations.
+ *
+ * @param name Variable name to search for
+ * @return Variable index (≥0) if found, -1 if not found or name is null
+ */
 int AutoFuzzy::findVariable(const char* name) const
 {
-    if (!name)
-        return -1;
+    if (!name) return -1;  // Null pointer check
+
+    // Linear search through variable array
     for (int i = 0; i < varCount; ++i) {
         if (strcmp(vars[i].name, name) == 0) {
-            return i;
+            return i;  // Found match
         }
     }
-    return -1; // Not found
+
+    return -1;  // Variable not found
 }
 
-// Internal helper to get variable pointer safely
+/**
+ * @brief Safe variable access - non-const version
+ * @param varIndex Variable index to access
+ * @return Pointer to variable or nullptr if invalid index
+ */
 AutoFuzzy::Variable* AutoFuzzy::getVariable(int varIndex)
 {
-    if (varIndex < 0 || varIndex >= varCount)
-        return nullptr;
+    // Bounds checking to prevent array access violations
+    if (varIndex < 0 || varIndex >= varCount) return nullptr;
     return &vars[varIndex];
 }
+
+/**
+ * @brief Safe variable access - const version
+ * @param varIndex Variable index to access
+ * @return Const pointer to variable or nullptr if invalid index
+ */
 const AutoFuzzy::Variable* AutoFuzzy::getVariable(int varIndex) const
 {
-    if (varIndex < 0 || varIndex >= varCount)
-        return nullptr;
+    // Bounds checking to prevent array access violations
+    if (varIndex < 0 || varIndex >= varCount) return nullptr;
     return &vars[varIndex];
 }
 
